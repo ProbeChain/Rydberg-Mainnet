@@ -36,6 +36,7 @@ profile.cov
 .claude/
 
 # Excluded packages (not needed for core chain)
+/probe-lang/
 /ProbeSmartLight/
 /ProbeSmartLight-Android/
 /mobile/
