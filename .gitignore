@@ -62,9 +62,28 @@ profile.cov
 /mobile/
 /swarm/
 
-# pre-built binaries
-rydberg-deploy/gprobe
-rydberg-deploy/gprobe-*
+# not needed for core chain
+/rydberg-deploy/
+/agent/
+/les/
+/light/
+/graphql/
+/probestats/
+/signer/
+/contracts/
+/tests/
+/docs/audits/
+
+# build scripts for mobile/fuzz
+build_android.sh
+build_ios.sh
+oss-fuzz.sh
+Dockerfile*
+.dockerignore
+.gitmodules
+.mailmap
+AUTHORS
+SECURITY.md
 
 # old CI configs
 appveyor.yml
