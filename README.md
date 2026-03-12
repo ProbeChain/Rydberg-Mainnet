@@ -1,6 +1,6 @@
-# ProbeChain
+# ProbeChain Rydberg Mainnet
 
-ProbeChain is a high-performance blockchain platform built on **Proof-of-Behavior (PoB)** consensus with **400ms block times**, a native **PROBE token**, and the **PROBE Language** — an agent-first smart contract programming language.
+ProbeChain is a Layer-1 blockchain built on **Proof-of-Behavior (PoB)** consensus with **400ms block times** and a dynamic **PROBE token** emission model tied to on-chain economic activity.
 
 ## Key Features
 
@@ -17,7 +17,6 @@ ProbeChain is a high-performance blockchain platform built on **Proof-of-Behavio
 
 ### StellarSpeed: 400ms Blocks
 - Sub-second block production with pipelined validation
-- Reduced ACK quorum for fast finality
 - Transaction confirmation in under 1 second
 
 ### PROBE Token
@@ -30,159 +29,54 @@ ProbeChain is a high-performance blockchain platform built on **Proof-of-Behavio
 | Smallest Unit | Pico (1 PROBE = 10^18 Pico) |
 | Chain ID | 8004 |
 
-### PROBE Language
-An agent-first programming language designed for AI agents and smart contracts:
-
-- **Linear type system** — Move-inspired resource safety (assets can't be duplicated or lost)
-- **Register-based VM** — 256 registers, 64-bit words, 71 opcodes
-- **Native PQC crypto** — Falcon-512, ML-DSA (Dilithium), SLH-DSA (SPHINCS+) verification opcodes
-- **Agent primitives** — First-class `agent`, `spawn`, `send`, `recv` constructs
-- **BPE-aligned syntax** — ASCII-only tokens optimized for LLM code generation (~70 tokens/task)
-- **Bytecode verification** — Safety holds even for buggy compiler output
-
 ## Building
 
 ### Prerequisites
 - Go 1.15 or later
 - C compiler (for secp256k1)
 
-### Build the blockchain client
+### Build
 
 ```bash
-make gprobe
-```
-
-### Build the PROBE Language compiler
-
-```bash
-make probec
-```
-
-### Build everything
-
-```bash
-make all
-```
-
-### Run tests
-
-```bash
-make test
+go build -o gprobe ./cmd/gprobe
 ```
 
 ## Running
 
+### Initialize genesis
+
+```bash
+./gprobe --datadir ./data init genesis.json
+```
+
 ### Start a node
 
 ```bash
-./build/bin/gprobe
-```
-
-### Compile PROBE Language source
-
-```bash
-# Tokenize a .probe file
-./build/bin/probec -emit tokens example.probe
-
-# Compile to bytecode (coming soon)
-./build/bin/probec -o output.pbc example.probe
+./gprobe --datadir ./data --networkid 8004 --http --http.api "probe,net,web3,personal,admin,miner,txpool,pob" --consensus pob --mine --miner.probebase <YOUR_ADDRESS> --unlock <YOUR_ADDRESS> --password password.txt --allow-insecure-unlock
 ```
 
 ## Architecture
 
 ```
-cmd/gprobe           CLI client entry point
-cmd/probec           PROBE Language compiler CLI
-consensus/pob        Proof-of-Behavior consensus engine
-core                 Blockchain core: chain, state, tx pool
-probe                Protocol handlers, sync, peer management
-p2p                  Devp2p networking, node discovery
-miner                Block production
-probe-lang           PROBE Language subsystem
-  lang/token           Lexical token definitions
-  lang/lexer           ASCII-only BPE-aligned tokenizer
-  lang/ast             Abstract syntax tree (22 expr, 10 stmt, 9 decl types)
-  lang/parser          Recursive descent + Pratt expression parser
-  lang/types           Type system with linear type checker
-  lang/ir              SSA-form intermediate representation
-  lang/codegen         Bytecode generation + Move-inspired verifier
-  lang/vm              Register-based virtual machine
-  stdlib               Standard library (agent, chain, crypto, math)
-  spec/grammar.ebnf    Formal grammar specification
+cmd/gprobe         CLI client entry point
+cmd/utils          Shared CLI flags and configuration
+consensus/pob      Proof-of-Behavior consensus engine
+core               Blockchain core: chain, state, tx pool, VM
+probe              Protocol handlers, sync, peer management
+p2p                Devp2p networking, node discovery
+crypto             Cryptography (secp256k1, Dilithium PQC)
+miner              Block production (StellarSpeed 400ms)
+params             Chain configuration and genesis parameters
+accounts           Account management and keystore
+node               Node lifecycle and service management
+rpc                JSON-RPC server
+trie               Merkle Patricia Trie
+probedb            Database abstraction (LevelDB)
 ```
 
-## PROBE Language Example
+## Links
 
-```
-agent Echo {
-    state {
-        count: u64,
-    }
-
-    msg handle(data: bytes) -> bytes {
-        self.count += 1;
-        data
-    }
-}
-
-resource Token {
-    balance: u64,
-}
-
-fn transfer(from: &mut Token, to: &mut Token, amount: u64) {
-    require(from.balance >= amount, "insufficient balance");
-    from.balance -= amount;
-    to.balance += amount;
-}
-```
-
-## VM Opcodes
-
-The PROBE VM provides 71 opcodes across 10 categories:
-
-| Category | Examples |
-|----------|----------|
-| Arithmetic | `add`, `sub`, `mul`, `div`, `mod`, `neg` |
-| Bitwise | `and`, `or`, `xor`, `not`, `shl`, `shr` |
-| Comparison | `eq`, `neq`, `lt`, `lte`, `gt`, `gte` |
-| Control Flow | `jump`, `jump_if`, `call`, `return`, `halt` |
-| Memory | `alloc`, `free`, `load_mem`, `store_mem` |
-| Agent | `spawn`, `send`, `recv`, `self` |
-| Blockchain | `balance`, `transfer`, `emit`, `block_num` |
-| Crypto (PQC) | `sha3`, `shake256`, `falcon512_verify`, `ml_dsa_verify`, `slh_dsa_verify` |
-| Resources | `resource_new`, `resource_drop`, `resource_check` |
-| Array | `array_new`, `array_get`, `array_set`, `array_len` |
-
-## Development
-
-### Run a single package's tests
-
-```bash
-go test ./core/...
-go test ./probe-lang/lang/vm/...
-go test ./consensus/pob/...
-```
-
-### Linting
-
-```bash
-make lint
-```
-
-Configured linters: `deadcode`, `goconst`, `goimports`, `gosimple`, `govet`, `ineffassign`, `misspell`, `unconvert`, `varcheck`.
-
-### Code generation tools
-
-```bash
-make devtools
-```
-
-## Documentation
-
-- [Technical Whitepaper](docs/ProbeChain-Rydberg-Whitepaper.md) — Full specification of PoB consensus, reward formulas, Agent GDP model, and anti-sybil mechanisms
-- [Documentation](https://doc.probechain.org/) — ProbeChain technical documentation
-- [Block Explorer](https://scan.probechain.org/home) — ProbeChain block explorer
-- [GitHub](https://github.com/ProbeChain/Rydberg-Mainnet) — Source code
+- [GitHub](https://github.com/ProbeChain/Rydberg-Mainnet)
 
 ## License
 
