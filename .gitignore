@@ -50,7 +50,7 @@ profile.cov
 /contracts/
 /tests/
 /smartlight/
-/docs/
+/docs/audits/
 
 # Excluded cmd tools
 /cmd/clef/

@@ -74,8 +74,9 @@ trie               Merkle Patricia Trie
 probedb            Database abstraction (LevelDB)
 ```
 
-## Links
+## Documentation
 
+- [Technical Whitepaper](docs/ProbeChain-Rydberg-Whitepaper.md) — PoB consensus, reward formulas, Agent GDP model, anti-sybil mechanisms
 - [GitHub](https://github.com/ProbeChain/Rydberg-Mainnet)
 
 ## License
