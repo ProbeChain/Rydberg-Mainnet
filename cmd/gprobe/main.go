@@ -207,7 +207,6 @@ func init() {
 		dumpGenesisCommand,
 		// See accountcmd.go:
 		accountCommand,
-		walletCommand,
 		// See consolecmd.go:
 		consoleCommand,
 		attachCommand,

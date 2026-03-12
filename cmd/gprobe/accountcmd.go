@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 	"github.com/probechain/go-probe/crypto"
-	"io/ioutil"
 
 	"github.com/probechain/go-probe/accounts"
 	"github.com/probechain/go-probe/accounts/keystore"
@@ -29,41 +28,6 @@ import (
 )
 
 var (
-	walletCommand = cli.Command{
-		Name:      "wallet",
-		Usage:     "Manage Probeum presale wallets",
-		ArgsUsage: "",
-		Category:  "ACCOUNT COMMANDS",
-		Description: `
-    gprobe wallet import /path/to/my/presale.wallet
-
-will prompt for your password and imports your probeer presale account.
-It can be used non-interactively with the --password option taking a
-passwordfile as argument containing the wallet password in plaintext.`,
-		Subcommands: []cli.Command{
-			{
-
-				Name:      "import",
-				Usage:     "Import Probeum presale wallet",
-				ArgsUsage: "<keyFile>",
-				Action:    utils.MigrateFlags(importWallet),
-				Category:  "ACCOUNT COMMANDS",
-				Flags: []cli.Flag{
-					utils.DataDirFlag,
-					utils.KeyStoreDirFlag,
-					utils.PasswordFileFlag,
-					utils.LightKDFFlag,
-				},
-				Description: `
-	gprobe wallet [options] /path/to/my/presale.wallet
-
-will prompt for your password and imports your probeer presale account.
-It can be used non-interactively with the --password option taking a
-passwordfile as argument containing the wallet password in plaintext.`,
-			},
-		},
-	}
-
 	accountCommand = cli.Command{
 		Name:     "account",
 		Usage:    "Manage accounts",
@@ -310,27 +274,6 @@ func accountUpdate(ctx *cli.Context) error {
 	return nil
 }
 
-func importWallet(ctx *cli.Context) error {
-	keyfile := ctx.Args().First()
-	if len(keyfile) == 0 {
-		utils.Fatalf("keyfile must be given as argument")
-	}
-	keyJSON, err := ioutil.ReadFile(keyfile)
-	if err != nil {
-		utils.Fatalf("Could not read wallet file: %v", err)
-	}
-
-	stack, _ := makeConfigNode(ctx)
-	passphrase := utils.GetPassPhraseWithList("", false, 0, utils.MakePasswordList(ctx))
-
-	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
-	acct, err := ks.ImportPreSaleKey(keyJSON, passphrase)
-	if err != nil {
-		utils.Fatalf("%v", err)
-	}
-	fmt.Printf("Address: {%x}\n", acct.Address)
-	return nil
-}
 
 func accountImport(ctx *cli.Context) error {
 	keyfile := ctx.Args().First()

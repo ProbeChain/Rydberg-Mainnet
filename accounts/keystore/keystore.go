@@ -87,14 +87,6 @@ func NewKeyStore(keydir string, scryptN, scryptP int) *KeyStore {
 	return ks
 }
 
-// NewPlaintextKeyStore creates a keystore for the given directory.
-// Deprecated: Use NewKeyStore.
-func NewPlaintextKeyStore(keydir string) *KeyStore {
-	keydir, _ = filepath.Abs(keydir)
-	ks := &KeyStore{storage: &keyStorePlain{keydir}}
-	ks.init(keydir)
-	return ks
-}
 
 func (ks *KeyStore) init(keydir string) {
 	// Lock the mutex since the account cache might call back with events
@@ -498,17 +490,7 @@ func (ks *KeyStore) Update(a accounts.Account, passphrase, newPassphrase string)
 	return ks.storage.StoreKey(a.URL.Path, key, newPassphrase)
 }
 
-// ImportPreSaleKey decrypts the given Probeum presale wallet and stores
-// a key file in the key directory. The key file is encrypted with the same passphrase.
-func (ks *KeyStore) ImportPreSaleKey(keyJSON []byte, passphrase string) (accounts.Account, error) {
-	a, _, err := importPreSaleKey(ks.storage, keyJSON, passphrase)
-	if err != nil {
-		return a, err
-	}
-	ks.cache.add(a)
-	ks.refreshWallets()
-	return a, nil
-}
+
 
 // zeroKey zeroes a private key in memory.
 func zeroKey(k *ecdsa.PrivateKey) {
