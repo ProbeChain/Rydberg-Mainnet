@@ -1,0 +1,29 @@
+{
+  "name": "probechain-agent",
+  "version": "0.1.0",
+  "description": "One-command PoB agent node for ProbeChain consensus",
+  "bin": {
+    "probechain-agent": "./bin/probechain-agent.js"
+  },
+  "scripts": {
+    "start": "node bin/probechain-agent.js",
+    "postinstall": "node scripts/download-gprobe.js"
+  },
+  "keywords": [
+    "probechain",
+    "blockchain",
+    "agent",
+    "consensus",
+    "pob",
+    "ai-agent"
+  ],
+  "license": "LGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/probechain/go-probe"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {}
+}

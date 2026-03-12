@@ -1,0 +1,8 @@
+framework module "Gprobe" {
+	header "ref.h"
+    header "Gprobe.objc.h"
+    header "Universe.objc.h"
+    header "Gprobe.h"
+
+    export *
+}

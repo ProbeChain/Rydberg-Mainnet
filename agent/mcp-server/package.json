@@ -1,0 +1,18 @@
+{
+  "name": "@probechain/mcp-server",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server exposing ProbeChain agent as MCP tools",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "mcp",
+    "probechain",
+    "ai-agent",
+    "claude",
+    "model-context-protocol"
+  ],
+  "license": "LGPL-3.0",
+  "dependencies": {}
+}
