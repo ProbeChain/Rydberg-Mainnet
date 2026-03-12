@@ -12,12 +12,11 @@
 *un~
 */**/*un~
 
-# Go build artifacts
+# Go build artifacts and tests
 */**/*.test
-/build/_workspace/
-/build/_vendor/
-/build/cache/
-/build/bin/
+*_test.go
+*/**/testdata/
+/build/
 profile.tmp
 profile.cov
 
@@ -35,7 +34,7 @@ profile.cov
 # Local state
 .claude/
 
-# Excluded packages (not needed for core chain)
+# Excluded packages
 /probe-lang/
 /ProbeSmartLight/
 /ProbeSmartLight-Android/
@@ -50,25 +49,41 @@ profile.cov
 /signer/
 /contracts/
 /tests/
-/docs/audits/
+/smartlight/
+/docs/
 
-# Excluded build artifacts (packaging, installers, iOS framework)
-/build/Gprobe.xcframework/
-/build/deb/
-/build/nsis.*
-/build/mvn.*
-/build/pod.podspec
-/build/travis_keepalive.sh
-/build/ci-notes.md
-/build/goimports.sh
-
-# Excluded cmd tools (unused utilities)
+# Excluded cmd tools
 /cmd/clef/
 /cmd/puppprobe/
 /cmd/faucet/
 /cmd/checkpoint-admin/
 /cmd/abidump/
 /cmd/p2psim/
+/cmd/abigen/
+/cmd/bootnode/
+/cmd/devp2p/
+/cmd/evm/
+/cmd/probekey/
+/cmd/rlpdump/
+
+# GitHub CI/templates
+/.github/
+
+# secp256k1 non-essential (autotools, java, sage, benchmarks)
+crypto/secp256k1/libsecp256k1/src/java/
+crypto/secp256k1/libsecp256k1/sage/
+crypto/secp256k1/libsecp256k1/build-aux/
+crypto/secp256k1/libsecp256k1/src/bench_*
+crypto/secp256k1/libsecp256k1/src/tests*
+crypto/secp256k1/libsecp256k1/src/testrand*
+crypto/secp256k1/libsecp256k1/Makefile.am
+crypto/secp256k1/libsecp256k1/TODO
+crypto/secp256k1/libsecp256k1/autogen.sh
+crypto/secp256k1/libsecp256k1/configure.ac
+crypto/secp256k1/libsecp256k1/libsecp256k1.pc.in
+crypto/secp256k1/libsecp256k1/README.md
+crypto/secp256k1/libsecp256k1/.gitignore
+**/Makefile.am.include
 
 # Excluded misc
 build_android.sh
@@ -77,10 +92,13 @@ oss-fuzz.sh
 Dockerfile*
 .dockerignore
 .gitmodules
+.gitattributes
+.golangci.yml
 .mailmap
+.travis.yml
+Makefile
 AUTHORS
 SECURITY.md
 appveyor.yml
 circle.yml
-.travis.yml
 genesis_pob.json
