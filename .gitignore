@@ -55,3 +55,18 @@ profile.cov
 /bootnode
 /data/
 .claude/
+
+# mobile apps and bindings (separate repos)
+/ProbeSmartLight/
+/ProbeSmartLight-Android/
+/mobile/
+/swarm/
+
+# pre-built binaries
+rydberg-deploy/gprobe
+rydberg-deploy/gprobe-*
+
+# old CI configs
+appveyor.yml
+circle.yml
+.travis.yml
