@@ -13,7 +13,7 @@ PORT=30398
 HTTP_PORT=8549
 GENESIS_NODE_IP="bore.pub"
 GENESIS_NODE_PORT=9208
-GENESIS_NODE_ENODE="enode://1ee705bed14b9857dfb889ecd0ecb31503c5325b599d2d2634f94dfb87023c4c16413418e4f484f94969741dda6d76b1e2807642c0582ffabafc967e06bdd357@${GENESIS_NODE_IP}:${GENESIS_NODE_PORT}"
+GENESIS_NODE_ENODE="enode://c56b6a7949fa9f6cf6e809863223fa9a444440a8f7fd4776ff5437f4c0db8d5775f7c0d3bfa0e6270242aa3811b776c9ef19d12c47a0f6e76f25b430a99071e9@${GENESIS_NODE_IP}:${GENESIS_NODE_PORT}"
 # ──────────────────────────────────────────────────────────────────
 
 RED='\033[0;31m'
@@ -54,6 +54,14 @@ cat << 'BANNER'
 
 BANNER
 echo -e "${NC}"
+
+# ─── Fast path: use npm installer if Node.js is available ────────
+if command -v npx &>/dev/null; then
+    info "Node.js detected — launching npm installer for best experience..."
+    exec npx rydberg-agent-node "$@"
+    # exec replaces this process; below is unreachable
+fi
+info "Node.js not found — using standalone installer (no dependencies needed)."
 
 # ─── Pre-checks ──────────────────────────────────────────────────
 [[ "$(uname)" == "Darwin" ]] || fail "This installer is for macOS only."
