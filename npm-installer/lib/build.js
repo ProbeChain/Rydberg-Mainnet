@@ -18,14 +18,33 @@ async function buildFromSource(installDir) {
 
   const srcDir = path.join(installDir, 'src');
 
+  // Retry git clone with HTTP/1.1 fallback (HTTP/2 framing errors common in China)
   console.log(`  Cloning ${REPO} @ ${tag}...`);
-  const cloneResult = spawnSync('git', [
-    'clone', '--branch', tag, '--depth', '1',
-    `https://github.com/${REPO}.git`, srcDir,
-  ], { stdio: 'inherit' });
+  let cloned = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    // Clean up partial clone from previous attempt
+    if (fs.existsSync(srcDir)) fs.rmSync(srcDir, { recursive: true, force: true });
 
-  if (cloneResult.status !== 0) {
-    throw new Error('git clone failed');
+    const gitArgs = ['clone', '--branch', tag, '--depth', '1'];
+    if (attempt >= 2) {
+      gitArgs.unshift('-c', 'http.version=HTTP/1.1');
+      console.log(`  Retry ${attempt}/3 (forcing HTTP/1.1)...`);
+    }
+    gitArgs.push(`https://github.com/${REPO}.git`, srcDir);
+
+    const cloneResult = spawnSync('git', gitArgs, { stdio: 'inherit', timeout: 120000 });
+    if (cloneResult.status === 0) {
+      cloned = true;
+      break;
+    }
+    if (attempt < 3) {
+      const wait = attempt * 3;
+      console.log(`  Clone failed, waiting ${wait}s before retry...`);
+      spawnSync('sleep', [String(wait)]);
+    }
+  }
+  if (!cloned) {
+    throw new Error('git clone failed after 3 attempts. Check network connection to github.com');
   }
 
   console.log('  Building gprobe (this may take 1-2 minutes)...');
