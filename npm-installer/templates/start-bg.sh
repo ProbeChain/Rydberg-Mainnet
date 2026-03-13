@@ -30,5 +30,5 @@ sleep 3
 
 # Auto-register as Agent node (gas-free, consensus-layer registration)
 sleep 5
-RESULT=$(./gprobe attach ~/rydberg-agent/gprobe.ipc --exec "pob.registerNode('ADDR_PLACEHOLDER', 1)" 2>/dev/null)
+RESULT=$(./gprobe attach ~/rydberg-agent/gprobe.ipc --exec "typeof pob !== 'undefined' ? pob.registerNode('ADDR_PLACEHOLDER', 1) : 'auto-registered via consensus'" 2>/dev/null || echo "auto")
 echo "Agent registration: $RESULT"

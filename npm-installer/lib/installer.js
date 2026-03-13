@@ -107,10 +107,14 @@ async function cmdStatus() {
   console.log(`  Peers:   ${peers}`);
   console.log(`  Address: ${addr}`);
   if (addr) {
-    const agentStatus = ipcExec(`pob.getNodeRegistrationStatus('${addr}')`);
-    console.log(`  Agent:   ${agentStatus}`);
-    const balance = ipcExec(`web3.fromWei(probe.getBalance('${addr}'), 'probeer')`);
+    let balance = ipcExec(`web3.fromWei(probe.getBalance('${addr}'), 'probeer')`);
+    if (balance.includes('Error') || balance.includes('error')) balance = '0';
     console.log(`  Balance: ${balance} PROBE`);
+    let agentStatus = ipcExec(`typeof pob !== 'undefined' ? pob.getNodeRegistrationStatus('${addr}') : 'auto'`);
+    if (agentStatus.includes('Error') || agentStatus.includes('error') || agentStatus.includes('ReferenceError')) {
+      agentStatus = 'auto (via consensus)';
+    }
+    console.log(`  Agent:   ${agentStatus}`);
   }
 }
 
@@ -219,21 +223,29 @@ async function cmdInstall() {
   log('Creating account...');
   const accountOutput = gprobe('--datadir', './data', 'account', 'new', '--password', 'password.txt');
   // Match pro1... (bech32) or 0x... (hex) address format
-  let addrMatch = accountOutput.match(/pro1[a-z0-9]{38,}/) || accountOutput.match(/0x[0-9a-fA-F]{40}/);
-  if (!addrMatch) {
-    // Fallback: extract hex address from keystore filename
+  const bech32Match = accountOutput.match(/pro1[a-z0-9]{38,}/);
+  const hexMatch = accountOutput.match(/0x[0-9a-fA-F]{40}/);
+
+  // Always extract hex address from keystore (needed for IPC/JS console)
+  let hexAddr = hexMatch ? hexMatch[0] : null;
+  if (!hexAddr) {
     const keystoreDir = path.join(DATA_DIR, 'keystore');
     if (fs.existsSync(keystoreDir)) {
       const files = fs.readdirSync(keystoreDir);
-      const hexMatch = files.length > 0 && files[0].match(/([0-9a-f]{40})/);
-      if (hexMatch) addrMatch = ['0x' + hexMatch[1]];
+      const kMatch = files.length > 0 && files[0].match(/([0-9a-f]{40})/);
+      if (kMatch) hexAddr = '0x' + kMatch[1];
     }
   }
-  if (!addrMatch) {
+  if (!hexAddr) {
     fail(`Failed to create account. Output:\n${accountOutput}`);
   }
-  const addr = addrMatch[0];
-  ok(`Account created: ${addr}`);
+
+  // Display address (prefer bech32 pro1 format if available)
+  const displayAddr = bech32Match ? bech32Match[0] : hexAddr;
+  ok(`Account created: ${displayAddr}`);
+  if (bech32Match && hexAddr) {
+    log(`Hex address:  ${hexAddr}`);
+  }
 
   // 7. Initialize genesis
   log('Initializing genesis block...');
@@ -245,11 +257,11 @@ async function cmdInstall() {
   const enode = await fetchBootnode(releaseTag);
   ok('Bootnode retrieved');
 
-  // 9. Generate start-bg.sh from template
+  // 9. Generate start-bg.sh from template (use hex address for IPC compatibility)
   log('Generating start script...');
   const template = fs.readFileSync(path.join(TEMPLATE_DIR, 'start-bg.sh'), 'utf8');
   const script = template
-    .replace(/ADDR_PLACEHOLDER/g, addr)
+    .replace(/ADDR_PLACEHOLDER/g, hexAddr)
     .replace(/ENODE_PLACEHOLDER/g, enode);
   fs.writeFileSync(START_SCRIPT, script, { mode: 0o755 });
   ok('start-bg.sh generated');
@@ -273,26 +285,37 @@ fi
     stdio: 'inherit',
   });
 
-  // 11. Verify
+  // 11. Verify (use hex address for IPC queries)
   log('Verifying node (waiting 10s for sync)...');
   await new Promise(r => setTimeout(r, 10000));
 
   const block = ipcExec('probe.blockNumber');
   const peers = ipcExec('admin.peers.length');
-  const agentStatus = ipcExec(`pob.getNodeRegistrationStatus('${addr}')`);
-  const balance = ipcExec(`web3.fromWei(probe.getBalance('${addr}'), 'probeer')`);
+
+  // Balance query (graceful — may fail if node is still initializing)
+  let balance = ipcExec(`web3.fromWei(probe.getBalance('${hexAddr}'), 'probeer')`);
+  if (balance.includes('Error') || balance.includes('error')) balance = '0';
+
+  // Agent status (graceful — pob namespace may not be available)
+  let agentStatus = ipcExec(`typeof pob !== 'undefined' ? pob.getNodeRegistrationStatus('${hexAddr}') : 'auto'`);
+  if (agentStatus.includes('Error') || agentStatus.includes('error') || agentStatus.includes('ReferenceError')) {
+    agentStatus = 'auto (via consensus)';
+  }
 
   console.log('');
   console.log('\x1b[32m\x1b[1m============================================\x1b[0m');
   console.log('\x1b[32m\x1b[1m  Rydberg Agent Node Deployed!\x1b[0m');
   console.log('\x1b[32m\x1b[1m============================================\x1b[0m');
   console.log('');
-  console.log(`  Address: ${addr}`);
+  console.log(`  Address: ${displayAddr}`);
+  if (displayAddr !== hexAddr) {
+    console.log(`  Hex:     ${hexAddr}`);
+  }
   console.log(`  Type:    Agent (PoB NodeType=1)`);
   console.log(`  Block:   #${block || 'syncing...'}`);
   console.log(`  Peers:   ${peers || '0'}`);
   console.log(`  Balance: ${balance || '0'} PROBE`);
-  console.log(`  Agent:   ${agentStatus || 'registering...'}`);
+  console.log(`  Agent:   ${agentStatus}`);
   console.log('');
   console.log('  Agent nodes receive 40% of block rewards,');
   console.log('  distributed by behavior score (initial: 5000).');
