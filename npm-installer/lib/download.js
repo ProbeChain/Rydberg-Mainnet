@@ -32,7 +32,7 @@ function getProxies() {
 function httpsGet(url, opts = {}) {
   return new Promise((resolve, reject) => {
     const options = {
-      headers: { 'User-Agent': 'rydberg-agent-node/2.5.10' },
+      headers: { 'User-Agent': 'rydberg-agent-node/3.0.0' },
       timeout: 120000,
       ...opts,
     };
@@ -219,7 +219,7 @@ async function fetchRepoFile(filePath, tag) {
   const url = `${GITHUB_CONTENTS}/${filePath}?ref=${tag}`;
   const data = await httpsGetWithRetry(url, {
     headers: {
-      'User-Agent': 'rydberg-agent-node/2.5.10',
+      'User-Agent': 'rydberg-agent-node/3.0.0',
       'Accept': 'application/vnd.github.raw',
     },
   });
