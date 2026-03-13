@@ -300,40 +300,74 @@ func DefaultAgentConfig() *AgentConfig {
 	}
 }
 
-// PoBV2Config holds the PoB V2 reward model configuration.
-// Two node types: Agent (PoB-A) and Physical (PoB-P).
-// Block reward is driven by real transaction count, not fixed amounts.
+// PoBV2Config holds the PoB V2.1 reward model configuration.
+// OZ Gold Standard: emission decays as Probe Banks accumulates physical gold.
+//
+// Design:
+//   - Block reward is coupled to qualified transaction VOLUME (not count)
+//   - Emission decays toward zero as Probe Banks gold reserves grow
+//   - When reserves reach 36,000 metric tons (1,157,425,200 OZ), emission stops
+//   - GDP is denominated in OZ (1 OZ = 1 troy ounce of gold)
+//   - PROBE market price is determined freely by the market
+//
+// Philosophy:
+//   Central banks' 32,000 tons of gold support $150T carbon-based GDP.
+//   Probe Banks' 36,000 tons of gold will support the silicon-based Agent GDP.
+//   Bitcoin solved money printing. PROBE solves Agent GDP measurement.
 type PoBV2Config struct {
-	// Block reward parameters
-	BaseRewardWei     uint64 `json:"baseRewardWei"`     // Reward per unit tx (default 1e14 = 0.0001 PROBE)
-	MaxBlockRewardWei uint64 `json:"maxBlockRewardWei"` // Maximum block reward (default 1e19 = 10 PROBE)
-	MaxTxPerBlock     uint64 `json:"maxTxPerBlock"`     // Maximum tx counted for reward (default 100,000)
+	// Volume-coupled reward rate in basis points.
+	// Each unit of qualified tx volume generates rewardRateBps/10000 PROBE.
+	// Default 13 bps = 0.13%: 1000 PROBE volume → 0.13 PROBE reward.
+	RewardRateBps uint64 `json:"rewardRateBps"`
+
+	// Minimum qualified transaction value in wei.
+	// Transactions below this threshold are excluded from reward and GDP.
+	// Default 1e16 = 0.01 PROBE. Prevents dust-spam attacks.
+	MinTxValueWei uint64 `json:"minTxValueWei"`
+
+	// Empty block heartbeat reward in wei.
+	// Tiny incentive for block production even without transactions.
+	// Default 1e13 = 0.00001 PROBE.
+	HeartbeatRewardWei uint64 `json:"heartbeatRewardWei"`
+
+	// Maximum block reward in wei (cap per block).
+	// Default 1e19 = 10 PROBE.
+	MaxBlockRewardWei uint64 `json:"maxBlockRewardWei"`
+
+	// Emission decay exponent (1 = linear, 2 = quadratic).
+	// Controls how quickly emission decreases as gold reserves grow.
+	// Linear (1): smooth, constant decay rate.
+	// Quadratic (2): front-loaded emission, faster tail-off.
+	DecayExponent uint64 `json:"decayExponent"`
+
+	// Probe Banks gold reserve target in whole troy ounces (OZ).
+	// When Probe Banks' physical gold reserves reach this amount, emission stops.
+	// 36,000 metric tons = 1,157,425,200 troy ounces.
+	// OZ token's totalSupply() = Probe Banks' actual gold (100% backed, no fractional reserve).
+	GoldReserveTargetOZ string `json:"goldReserveTargetOZ"`
 
 	// Reward split (basis points, must sum to 10000)
 	ProducerShareBps uint64 `json:"producerShareBps"` // Block producer share (default 3000 = 30%)
 	AgentShareBps    uint64 `json:"agentShareBps"`    // Agent node pool share (default 4000 = 40%)
 	PhysicalShareBps uint64 `json:"physicalShareBps"` // Physical node pool share (default 3000 = 30%)
 
-	// Agent GDP halt target (in wei). When cumulative on-chain tx volume
-	// reaches this value, PROBE emission stops. Narrative: agent economy
-	// surpasses 2026 human GDP (~$150 trillion).
-	AgentGDPTargetWei string `json:"agentGDPTargetWei"` // Big number as string (default "150000000000000000000000000000000")
-
 	// Difficulty scaling
 	InitialDifficulty    uint64 `json:"initialDifficulty"`    // Starting difficulty (default 1)
 	NodesPerDifficultyUp uint64 `json:"nodesPerDifficultyUp"` // Nodes needed to increase difficulty by 1 (default 1000)
 }
 
-// DefaultPoBV2Config returns the default PoB V2 configuration.
+// DefaultPoBV2Config returns the default PoB V2.1 configuration (OZ Gold Standard).
 func DefaultPoBV2Config() *PoBV2Config {
 	return &PoBV2Config{
-		BaseRewardWei:        1e14,   // 0.0001 PROBE
-		MaxBlockRewardWei:    1e19,   // 10 PROBE
-		MaxTxPerBlock:        100000, // 100K tx cap
-		ProducerShareBps:     3000,   // 30%
-		AgentShareBps:        4000,   // 40%
-		PhysicalShareBps:     3000,   // 30%
-		AgentGDPTargetWei:    "150000000000000000000000000000000", // ~$150T at $1/PROBE
+		RewardRateBps:        5,            // 0.05% of qualified volume (4.2× anti-Sybil margin)
+		MinTxValueWei:        1e16,         // 0.01 PROBE minimum
+		HeartbeatRewardWei:   1e10,         // 0.00000001 PROBE for empty blocks
+		MaxBlockRewardWei:    1e19,         // 10 PROBE cap per block
+		DecayExponent:        1,            // Linear decay
+		GoldReserveTargetOZ:  "1157425200", // 36,000 metric tons = 1,157,425,200 troy oz
+		ProducerShareBps:     3000,         // 30%
+		AgentShareBps:        4000,         // 40%
+		PhysicalShareBps:     3000,         // 30%
 		InitialDifficulty:    1,
 		NodesPerDifficultyUp: 1000,
 	}

@@ -17,13 +17,15 @@
         "stellarSpeedBlock": 0,
         "pobV2Block": 0,
         "pobV2": {
-            "baseRewardWei": 100000000000000,
+            "rewardRateBps": 5,
+            "minTxValueWei": 10000000000000000,
+            "heartbeatRewardWei": 10000000000,
             "maxBlockRewardWei": 10000000000000000000,
-            "maxTxPerBlock": 100000,
+            "decayExponent": 1,
+            "goldReserveTargetOZ": "1157425200",
             "producerShareBps": 3000,
             "agentShareBps": 4000,
             "physicalShareBps": 3000,
-            "agentGDPTargetWei": "150000000000000000000000000000000",
             "initialDifficulty": 1,
             "nodesPerDifficultyUp": 1000
         },

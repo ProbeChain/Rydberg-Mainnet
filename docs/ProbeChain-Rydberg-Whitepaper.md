@@ -1,12 +1,16 @@
-# ProbeChain Rydberg Mainnet: A Proof-of-Behavior Blockchain for the Agent Economy
+# ProbeChain Rydberg Mainnet: OZ Gold Standard for the Agent Economy
 
-**Whitepaper v1.0 — March 2026**
+**Whitepaper v2.1 — March 2026**
 
 ---
 
 ## Abstract
 
-ProbeChain is a Layer-1 blockchain purpose-built for the emerging agent economy. Its novel Proof-of-Behavior (PoB) consensus mechanism replaces energy expenditure and capital lockup with continuous behavioral evaluation, enabling two classes of participants — AI agents and physical devices — to earn rewards proportional to the quality and reliability of their contributions. The network produces blocks every 400 milliseconds, supports over one million concurrent nodes through a three-tier relay architecture, and ties token emission directly to on-chain economic activity rather than to a fixed supply schedule. Emission of the native PROBE token continues only until cumulative on-chain transaction volume — termed Agent GDP — reaches a target equivalent to $150 trillion, the approximate global human GDP in 2026. This paper specifies the consensus rules, reward formulas, node identity system, anti-sybil mechanisms, relay network topology, and scalability design of the Rydberg mainnet release.
+ProbeChain is a Layer-1 blockchain purpose-built for the emerging agent economy. Its Proof-of-Behavior (PoB) consensus mechanism evaluates nodes on observable behavior rather than energy expenditure or capital lockup, enabling two classes of participants — AI agents and physical devices — to earn rewards proportional to the quality of their contributions.
+
+**PoB V2.1** introduces the **OZ Gold Standard**: PROBE token emission is coupled to on-chain transaction volume and governed by a gold-reserve decay function tied to Probe Banks' physical gold reserves. When Probe Banks accumulates 36,000 metric tons of gold (1,157,425,200 troy ounces of OZ), PROBE emission halts permanently. This parallels how global central banks' ~32,000 tons of gold support $150 trillion in human GDP — Probe Banks' 36,000 tons will support the silicon-based Agent GDP.
+
+This paper specifies the consensus rules, reward formulas, anti-Sybil economics, node identity system, and network architecture.
 
 ---
 
@@ -15,23 +19,26 @@ ProbeChain is a Layer-1 blockchain purpose-built for the emerging agent economy.
 1. [Introduction and Motivation](#1-introduction-and-motivation)
 2. [Proof-of-Behavior Consensus](#2-proof-of-behavior-consensus)
 3. [Node Types and Behavioral Scoring](#3-node-types-and-behavioral-scoring)
-4. [Block Reward Formula](#4-block-reward-formula-transaction-driven-emission)
-5. [Agent GDP and Emission Model](#5-agent-gdp-and-emission-model)
-6. [Node Identity and Anti-Sybil System](#6-node-identity-and-anti-sybil-system)
-7. [Difficulty Adjustment](#7-difficulty-adjustment)
-8. [Relay Network Architecture](#8-relay-network-architecture)
-9. [Scalability](#9-scalability)
-10. [Competitive Analysis](#10-why-probechain-is-competitive)
+4. [OZ Gold Standard: Block Reward Formula](#4-oz-gold-standard-block-reward-formula)
+5. [Anti-Sybil Economics](#5-anti-sybil-economics)
+6. [Gold-Reserve Decay and Emission Halt](#6-gold-reserve-decay-and-emission-halt)
+7. [Node Identity and Anti-Sybil System](#7-node-identity-and-anti-sybil-system)
+8. [Difficulty Adjustment](#8-difficulty-adjustment)
+9. [Relay Network Architecture](#9-relay-network-architecture)
+10. [Scalability](#10-scalability)
+11. [Competitive Analysis](#11-why-probechain-is-competitive)
 
 ---
 
 ## 1. Introduction and Motivation
 
-The blockchain industry has converged on two dominant consensus families: Proof-of-Work (PoW) and Proof-of-Stake (PoS). Both secure their networks through resource commitment — electricity and hardware in PoW, capital lockup in PoS. Neither family was designed for a world in which autonomous AI agents transact continuously, nor for a world in which billions of physical devices contribute storage, compute, and connectivity to decentralized infrastructure.
+The blockchain industry has converged on two dominant consensus families: Proof-of-Work (PoW) and Proof-of-Stake (PoS). Both secure their networks through resource commitment — electricity and hardware in PoW, capital lockup in PoS. Neither was designed for a world in which autonomous AI agents transact continuously, nor for a world in which billions of physical devices contribute to decentralized infrastructure.
 
-ProbeChain introduces Proof-of-Behavior (PoB), a consensus mechanism in which validators are scored on observable, verifiable behavior rather than on energy or capital. The network recognizes two node types — Agent Nodes running AI workloads and Physical Nodes contributing hardware resources — and evaluates each along dimensions appropriate to its role. Rewards are not fixed per block; they scale with real transaction volume, creating a direct link between economic activity and token emission.
+**Bitcoin solved central bank money printing** with a fixed supply and time-based halving. **ProbeChain solves Agent GDP measurement, settlement, and behavior governance** with volume-coupled emission and gold-reserve-based decay.
 
-The Rydberg mainnet operates on **Chain ID 8004**, a registered and globally unique identifier. Blocks are produced every **400 milliseconds** (internally designated StellarSpeed), yielding approximately 216,000 blocks per day and enabling the sub-second finality required by high-frequency agent-to-agent settlements.
+ProbeChain introduces Proof-of-Behavior (PoB), a consensus mechanism in which validators are scored on observable, verifiable behavior. The network recognizes two node types — Agent Nodes running AI workloads and Physical Nodes contributing hardware resources — and evaluates each along dimensions appropriate to its role.
+
+The Rydberg mainnet operates on **Chain ID 8004**. Blocks are produced every **400 milliseconds** (StellarSpeed), yielding approximately 216,000 blocks per day and enabling the sub-second finality required by high-frequency agent-to-agent settlements.
 
 ---
 
@@ -39,7 +46,7 @@ The Rydberg mainnet operates on **Chain ID 8004**, a registered and globally uni
 
 ### 2.1 Core Principle
 
-In PoB, the right to produce blocks and the share of block rewards are functions of a node's behavioral score, a composite metric computed from on-chain observations. Nodes that respond quickly, complete tasks accurately, cooperate with peers, and maintain high uptime accumulate higher scores. Nodes that act maliciously, collude, or go offline see their scores degrade.
+In PoB, the right to produce blocks and the share of block rewards are functions of a node's behavioral score. Nodes that respond quickly, complete tasks accurately, cooperate with peers, and maintain high uptime accumulate higher scores. Nodes that act maliciously, collude, or go offline see their scores degrade.
 
 ### 2.2 Consensus Parameters
 
@@ -47,29 +54,24 @@ In PoB, the right to produce blocks and the share of block rewards are functions
 |-------------------|--------------------|
 | Chain ID          | 8004               |
 | Block Time        | 400 ms             |
-| Max Tx Per Block  | 100,000            |
+| Gas Limit         | 30,000,000         |
+| Base Fee Floor    | 1 Gwei             |
 | Validator Set     | 1 – 21 validators  |
-| Re-verification   | Agent: every 100K blocks; Physical: every 250K blocks |
+| Epoch             | 30,000 blocks      |
 
 ### 2.3 Block Production
 
-Validators are selected from the top-scoring nodes in each epoch. A validator's probability of producing a given block is weighted by its behavioral score. The 400 ms block time demands that validator selection and block propagation complete within tight latency bounds, which the relay network (Section 8) is designed to guarantee.
+Validators are selected from the top-scoring nodes in each epoch. A validator's probability of producing a given block is weighted by its behavioral score. The 400 ms block time demands tight latency bounds, which the relay network (Section 9) guarantees.
 
 ---
 
 ## 3. Node Types and Behavioral Scoring
 
-ProbeChain distinguishes two node types. Registration is a binary, irreversible choice: a node is either an Agent Node or a Physical Node. It cannot be both.
+ProbeChain distinguishes two node types. Registration is a binary, irreversible choice.
 
 ### 3.1 Agent Node (PoB-A)
 
-An Agent Node is an AI agent running on a 24/7 internet-connected computer. Onboarding is a single command:
-
-```
-npx probechain-agent
-```
-
-Agent Nodes are rewarded for processing inter-agent on-chain token settlements. Their behavioral score is computed across six dimensions:
+An Agent Node is an AI agent running on a 24/7 internet-connected computer. Agent Nodes are rewarded for processing inter-agent on-chain token settlements. Their behavioral score is computed across six dimensions:
 
 | Dimension       | Weight | Description                                           |
 |-----------------|--------|-------------------------------------------------------|
@@ -80,45 +82,72 @@ Agent Nodes are rewarded for processing inter-agent on-chain token settlements. 
 | Economy         | 15%    | Efficiency of resource usage relative to output        |
 | Sovereignty     | 10%    | Independence of decision-making; resistance to coercion|
 
-The Sovereignty dimension is unique to ProbeChain. It penalizes nodes whose voting and attestation patterns are statistically indistinguishable from those of other nodes, a signal of sybil coordination or centralized control.
-
 ### 3.2 Physical Node (PoB-P)
 
-A Physical Node is any physical device — data center server, automobile, refrigerator, smartphone — that contributes verified storage space to the network. Physical Nodes are scored across four dimensions:
+A Physical Node is any physical device that contributes verified storage space to the network. Physical Nodes are scored across four dimensions:
 
 | Dimension            | Weight | Description                                          |
 |----------------------|--------|------------------------------------------------------|
 | StorageContribution  | 40%    | Quantity of verified, usable storage provided         |
 | Uptime               | 25%    | Continuous availability over measurement windows      |
 | DataService          | 20%    | Responsiveness and throughput of data retrieval       |
-| Integrity            | 15%    | Correctness of stored data; passing of proof-of-storage challenges |
+| Integrity            | 15%    | Correctness of stored data; passing proof-of-storage challenges |
 
 ---
 
-## 4. Block Reward Formula: Transaction-Driven Emission
+## 4. OZ Gold Standard: Block Reward Formula
 
 ### 4.1 Design Philosophy
 
-In Bitcoin and Ethereum, empty blocks carry the same reward as full blocks. A miner or validator who produces a block containing zero user transactions receives the full block subsidy. This decouples emission from economic utility.
+In Bitcoin and Ethereum, empty blocks carry the same reward as full blocks, decoupling emission from economic utility. ProbeChain inverts this: rewards are proportional to real economic activity (transaction volume), and emission decreases as physical gold reserves grow.
 
-ProbeChain inverts this relationship. Empty blocks receive a negligible reward. Real economic activity — non-zero-value transactions — drives emission upward, capped at a per-block maximum.
+**OZ** is Probe Banks' gold-backed stablecoin:
+- 1 OZ = 1 troy ounce of 99.99% pure gold
+- 100% physical gold backing. No fractional reserve.
+- `OZ.totalSupply()` on-chain = Probe Banks' actual gold reserves in troy ounces
 
-### 4.2 Reward Calculation
+### 4.2 Qualified Transaction Volume
 
-Let `realTxCount` be the number of transactions in a block whose transferred value is strictly greater than zero. The block reward `R` is:
+Not all transactions contribute to the block reward. A transaction qualifies only if:
+
+1. **Value >= MinTxValue** (0.01 PROBE = 10^16 wei)
+2. **Not a self-transfer** (sender != recipient, when sender info is available)
 
 ```
-R = min((realTxCount + 1) * 0.0001 PROBE, 10 PROBE)
+qualifiedVolume = Σ tx.Value()  for all qualifying transactions in the block
 ```
 
-Key properties:
+The MinTxValue filter prevents micro-transaction spam from inflating rewards.
 
-- **Empty block reward:** When `realTxCount = 0`, `R = (0 + 1) * 0.0001 = 0.0001 PROBE`. This is negligible but non-zero, ensuring the chain advances even during idle periods.
-- **Linear scaling:** Each additional real transaction adds 0.0001 PROBE to the reward.
-- **Hard cap:** The reward cannot exceed 10 PROBE per block, reached at `realTxCount = 99,999`.
-- **Transaction ceiling:** A maximum of 100,000 transactions per block bounds computational load.
+### 4.3 Block Reward Calculation
 
-### 4.3 Reward Distribution
+```
+decay  = (1 - goldReserveOZ / 1,157,425,200)
+reward = min(qualifiedVolume × rewardRate × decay, maxBlockReward)
+```
+
+Where:
+- `rewardRate` = 5 basis points (0.05%)
+- `maxBlockReward` = 10 PROBE (10^19 wei)
+- `decay` ∈ [0, 1] — linear decay based on Probe Banks' gold reserves
+
+**Empty blocks** receive a heartbeat reward:
+```
+heartbeatReward = 0.00000001 PROBE × decay = 10^10 wei × decay
+```
+
+### 4.4 Genesis Parameters
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `rewardRateBps` | 5 | 0.05% of qualified volume |
+| `minTxValueWei` | 10^16 | 0.01 PROBE minimum |
+| `heartbeatRewardWei` | 10^10 | 0.00000001 PROBE |
+| `maxBlockRewardWei` | 10^19 | 10 PROBE cap |
+| `decayExponent` | 1 | Linear decay |
+| `goldReserveTargetOZ` | 1,157,425,200 | 36,000 metric tons |
+
+### 4.5 Reward Distribution
 
 The block reward is split among three pools:
 
@@ -128,138 +157,127 @@ The block reward is split among three pools:
 | Agent Pool      | 40%   | All registered Agent Nodes, pro-rata by behavior score  |
 | Physical Pool   | 30%   | All registered Physical Nodes, pro-rata by behavior score|
 
-Within each pool, individual rewards are distributed proportionally to each node's current behavioral score:
-
-```
-reward_i = pool_total * (score_i / sum(all_scores_in_pool))
-```
-
-This ensures that high-scoring nodes earn disproportionately more than low-scoring peers, creating continuous incentive pressure toward good behavior.
+Any remainder from integer division goes to the block producer.
 
 ---
 
-## 5. Agent GDP and Emission Model
+## 5. Anti-Sybil Economics
 
-### 5.1 No Fixed Total Supply
+### 5.1 The Problem
 
-ProbeChain deliberately avoids a fixed total supply. Bitcoin's 21 million cap and Ethereum's post-Merge deflationary trajectory are arbitrary parameters unrelated to the economic activity their networks support. ProbeChain ties emission to a macroeconomic target.
+If an attacker can spam the network with zero-value or micro-value transactions to inflate qualified volume, they earn rewards that exceed their gas costs — a profitable Sybil attack.
 
-### 5.2 Agent GDP Definition
+### 5.2 The Solution: EIP-1559 Base Fee Floor
 
-Agent GDP is defined as the cumulative sum of all non-zero transaction values ever recorded on-chain, denominated in PROBE (tracked internally in wei):
-
-```
-Agent_GDP = SUM(tx.value) for all tx where tx.value > 0
-```
-
-This metric is monotonically increasing and represents the total economic throughput of the agent economy built on ProbeChain.
-
-### 5.3 Emission Halt Condition
-
-PROBE emission continues until Agent GDP reaches a configurable target. The default target is:
+ProbeChain modifies the EIP-1559 base fee calculation to enforce a **floor of 1 Gwei** (0.000000001 PROBE). Without this floor, the base fee drops to zero within ~40 seconds of empty blocks (12.5% decrease per block at 400ms), enabling zero-cost spam.
 
 ```
-Agent GDP Target = 150,000,000,000,000 PROBE
-                 = 150000000000000000000000000000000 wei
-                 (~$150 trillion at $1/PROBE)
+baseFee = max(calculated_baseFee, 1 Gwei)
 ```
 
-The value of $150 trillion corresponds to the approximate global human GDP in 2026. The thesis is direct: when the autonomous agent economy has generated economic activity equivalent to the entire human economy, further inflationary emission is no longer necessary to bootstrap the network. At that point, transaction fees alone sustain validator incentives.
+### 5.3 Cost-Reward Analysis
 
-### 5.4 Mechanism
+For a single transaction at the minimum qualified value (0.01 PROBE):
 
-- Every block, the cumulative Agent GDP counter is updated by summing the values of all non-zero transactions in that block.
-- Before computing the block reward, the consensus engine checks whether the cumulative Agent GDP has reached or exceeded the target.
-- If the target is reached, the block reward is set to zero. No new PROBE is minted.
-- The target is a consensus parameter and can be updated through governance, but the default is deliberately ambitious to ensure the network has a long runway of emission-funded incentives.
+```
+Reward:   0.01 PROBE × 5/10000 = 0.000005 PROBE
+Gas cost: 21,000 gas × 1 Gwei  = 0.000021 PROBE (burned via EIP-1559)
 
-### 5.5 Economic Implications
+Net:      -0.000016 PROBE per transaction (guaranteed loss)
+Safety margin: 4.2×
+```
 
-This model creates a virtuous cycle:
+**An attacker loses 4.2 times more in gas than they earn in rewards.** This makes Sybil attacks economically irrational at any scale.
 
-1. More real transactions increase Agent GDP and trigger higher block rewards.
-2. Higher rewards attract more Agent and Physical Nodes.
-3. More nodes increase network capacity and reliability.
-4. Greater capacity supports more transactions.
+### 5.4 Break-Even Analysis
 
-Conversely, idle periods produce near-zero emission, preventing dilution during low-activity phases. The token supply is therefore a function of genuine demand, not of time elapsed.
+The break-even transaction value is:
+
+```
+breakEven = txGas × gasPrice / rewardRate
+          = 21,000 × 1 Gwei / (5/10000)
+          = 0.042 PROBE
+```
+
+Transactions below 0.042 PROBE generate less reward than their gas cost. The MinTxValue of 0.01 PROBE sits well below this threshold, providing the 4.2× safety margin.
 
 ---
 
-## 6. Node Identity and Anti-Sybil System
+## 6. Gold-Reserve Decay and Emission Halt
 
-Sybil resistance is fundamental to any behavioral scoring system. If an adversary can register thousands of identities cheaply, behavioral scores become meaningless. ProbeChain addresses this with distinct identity proofs for each node type, rate limiting, correlation detection, and periodic re-verification.
+### 6.1 The OZ Gold Standard
 
-### 6.1 Agent Node Registration (ERC-8004 Identity)
+Unlike Bitcoin's arbitrary 21 million cap, ProbeChain's emission is governed by a physically verifiable metric: **Probe Banks' gold reserves**.
+
+- **OZ** is Probe Banks' gold-backed stablecoin (1 OZ = 1 troy ounce of 99.99% gold)
+- Probe Banks maintains 100% physical gold backing — no fractional reserve
+- The on-chain `totalSupply()` of OZ equals Probe Banks' actual gold reserves in troy ounces
+- Gold is stored across multiple jurisdictions (Mongolia, Switzerland, Singapore, UAE)
+
+### 6.2 Decay Function
+
+As Probe Banks accumulates more gold, the emission rate decreases linearly:
+
+```
+decay = (targetOZ - goldReserveOZ) / targetOZ
+```
+
+| Gold Reserve | Decay Factor | Emission Rate |
+|-------------|--------------|---------------|
+| 0 OZ | 100% | Full emission |
+| 115,742,520 OZ (3,600 tons) | 90% | 90% of base |
+| 578,712,600 OZ (18,000 tons) | 50% | Half emission |
+| 1,041,682,680 OZ (32,400 tons) | 10% | Near-zero |
+| 1,157,425,200 OZ (36,000 tons) | 0% | **Emission stops** |
+
+### 6.3 Why 36,000 Metric Tons?
+
+Global central banks collectively hold ~32,000 metric tons of gold, which underlies the ~$150 trillion carbon-based (human) GDP. By targeting 36,000 metric tons — exceeding central bank reserves — Probe Banks creates a gold reserve sufficient to underpin the silicon-based Agent GDP that ProbeChain is designed to measure and settle.
+
+### 6.4 Smooth Transition
+
+Unlike step-function halving (Bitcoin), the linear decay ensures a smooth, predictable reduction in emission. There are no sudden cliff events. As gold reserves grow, emission gently approaches zero, allowing the market to adjust gradually.
+
+### 6.5 Post-Emission Economics
+
+When emission halts, validators are sustained by transaction fees alone (EIP-1559 base fees + priority tips). The 1 Gwei base fee floor ensures validators always have minimum compensation, even during low-activity periods.
+
+---
+
+## 7. Node Identity and Anti-Sybil System
+
+### 7.1 Agent Node Registration (ERC-8004)
 
 Agent registration requires proof of a unique on-chain identity conforming to ERC-8004.
 
-**Challenge-Response Protocol:**
+1. The applicant provides an `AgentID` (keccak256 of metadata), which must be globally unique.
+2. The chain issues a challenge: `keccak256(blockHash || blockNumber || applicant)`.
+3. The challenge expires after 256 blocks (~102 seconds).
+4. The agent signs the challenge with its own private key (distinct from the operator's key).
+5. If valid and unique, registration succeeds.
 
-1. The applicant requests registration, providing an `AgentID` — the keccak256 hash of the agent's metadata. This ID must be globally unique across all registered agents.
-2. The chain issues a challenge:
-   ```
-   challenge = keccak256(blockHash || blockNumber || applicant)
-   ```
-3. The challenge expires after **256 blocks** (~102 seconds at 400 ms block time).
-4. The agent signs the challenge with its **own private key** — distinct from the operator's key. This proves the agent is a sovereign entity, not merely a proxy for its operator.
-5. The signature is verified on-chain. If valid and the AgentID is unique, registration succeeds.
-
-The separation of agent key and operator key is a deliberate design decision. It ensures that even if an operator runs multiple agents, each agent must possess its own cryptographic identity, raising the cost of sybil attacks.
-
-### 6.2 Physical Node Registration (Device Fingerprinting)
-
-Physical registration requires proof of device uniqueness through hardware fingerprinting.
-
-**Device Fingerprint:**
+### 7.2 Physical Node Registration (Device Fingerprinting)
 
 ```
 fingerprint = keccak256(cpuID || macAddress || diskSerial || boardSerial)
 ```
 
-This fingerprint must be globally unique. One physical device maps to exactly one node identity.
+Fingerprints must be globally unique. Virtualization detection covers VMware, VirtualBox, KVM, QEMU, Xen, Hyper-V, Docker, and WSL.
 
-**Hardware Report:**
+### 7.3 Layered Defenses
 
-Each Physical Node submits a hardware report at registration containing:
-
-- CPU core count
-- RAM capacity
-- Disk capacity
-- Operating system type
-- Virtualization flags
-
-**Virtualization Detection:**
-
-The registration system actively detects virtual environments to prevent a single physical machine from spawning multiple "physical" nodes. Detection covers:
-
-| Category             | Detected Environments                                              |
-|----------------------|--------------------------------------------------------------------|
-| Hypervisors          | VMware, VirtualBox, KVM, QEMU, Xen, Hyper-V                      |
-| Containers           | Docker, WSL                                                        |
-| Mobile Emulators     | Android emulators                                                  |
-| MAC Address Prefixes | 8 known VM vendor prefixes (e.g., 00:05:69 for VMware, 08:00:27 for VirtualBox) |
-
-Nodes detected as running in a virtual environment are rejected at registration.
-
-### 6.3 Anti-Sybil Measures
-
-Beyond identity verification, ProbeChain employs layered sybil defenses:
-
-| Measure                        | Detail                                                    |
-|--------------------------------|-----------------------------------------------------------|
-| IP Rate Limiting               | Maximum 10 registrations per IP address per hour          |
-| Behavioral Correlation Detection | Nodes with >95% vote correlation flagged as sybil cluster |
-| Periodic Re-verification       | Agents: every 100,000 blocks; Physical: every 250,000 blocks |
-| Sybil Penalty                  | Up to 50% behavioral score reduction for flagged nodes    |
-
-Re-verification ensures that identities remain valid over time. An agent whose ERC-8004 identity has been revoked, or a physical device whose fingerprint has changed (indicating hardware substitution or virtualization), is de-registered.
+| Measure | Detail |
+|---------|--------|
+| MinTxValue filter | 0.01 PROBE minimum for reward qualification |
+| Base fee floor | 1 Gwei — guaranteed gas cost |
+| Self-transfer ban | Sender != recipient for reward qualification |
+| IP rate limiting | Max 10 registrations per IP per hour |
+| Behavioral correlation | >95% vote correlation flags sybil clusters |
+| Periodic re-verification | Agents: every 100K blocks; Physical: every 250K blocks |
 
 ---
 
-## 7. Difficulty Adjustment
-
-ProbeChain uses a simple, linear difficulty model that scales with network size:
+## 8. Difficulty Adjustment
 
 ```
 difficulty = max(1, totalNodeCount / 1000)
@@ -272,15 +290,11 @@ difficulty = max(1, totalNodeCount / 1000)
 | 100,000     | 100        |
 | 1,000,000   | 1,000      |
 
-The initial difficulty is 1. As the network grows, difficulty increases linearly, ensuring that block production remains stable regardless of the number of participating nodes. This avoids the exponential difficulty spirals and oscillations characteristic of PoW systems.
-
 ---
 
-## 8. Relay Network Architecture
+## 9. Relay Network Architecture
 
-Supporting one million or more nodes with 400 ms block times requires a purpose-built message propagation layer. ProbeChain implements a three-tier relay network.
-
-### 8.1 Tier Structure
+### 9.1 Three-Tier Structure
 
 ```
 Tier 1: Validators          (1 – 21 nodes)
@@ -290,32 +304,15 @@ Tier 2: SmartLight Relays   (100 – 10,000 nodes)
 Tier 3: Agent / Physical    (1,000,000+ nodes)
 ```
 
-Validators produce blocks and finalize consensus. SmartLight Relays propagate blocks, aggregate attestations, and manage heartbeats for the edge nodes assigned to them. Agent and Physical Nodes are the economic participants that earn rewards through behavior.
+### 9.2 Relay Assignment
 
-### 8.2 Relay Assignment
-
-Edge nodes are assigned to SmartLight Relays deterministically using XOR distance:
+Edge nodes are assigned to SmartLight Relays via XOR distance:
 
 ```
 assignment = argmin(relay) { XOR(nodeID, relayID) }
 ```
 
-This produces a balanced, deterministic mapping that requires no central coordinator. If a relay goes offline, nodes are reassigned to the next-closest relay by XOR distance.
-
-### 8.3 Relay Scoring
-
-SmartLight Relays are themselves scored to ensure quality of service:
-
-| Dimension            | Weight | Description                                |
-|----------------------|--------|--------------------------------------------|
-| Heartbeat Relay      | 40%    | Timely forwarding of node heartbeats       |
-| Task Completion      | 30%    | Successful relay of consensus messages     |
-| Aggregation Accuracy | 20%    | Correctness of aggregated attestations     |
-| Agent Retention      | 10%    | Stability of assigned node connections     |
-
-### 8.4 Heartbeat Bloom Filter
-
-To track liveness of up to one million nodes without excessive bandwidth, the relay layer uses a Bloom filter:
+### 9.3 Heartbeat Bloom Filter
 
 ```
 Size:               128 KB (1,048,576 bits)
@@ -323,94 +320,73 @@ Capacity:           1,000,000 heartbeats
 False Positive Rate: 0.1%
 ```
 
-Each block header can embed the Bloom filter, enabling any node to verify network liveness without downloading individual heartbeat messages.
+### 9.4 BLS Aggregated Attestations
 
-### 8.5 Aggregated Attestations
-
-Attestations from edge nodes are aggregated at the relay tier using **BLS signatures**. A single aggregated signature proves that a set of nodes attested to a given block, with a participant Bloom filter identifying which nodes contributed. This reduces per-block attestation data from O(n) to O(1), a requirement for scaling to millions of participants.
+Attestations from edge nodes are aggregated at the relay tier using BLS signatures, reducing per-block attestation data from O(n) to O(1).
 
 ---
 
-## 9. Scalability
+## 10. Scalability
 
-### 9.1 Separate Agent State Trie
+### 10.1 Separate Agent State Trie
 
-The main Ethereum-derived state trie stores account balances and contract storage. Naively adding behavioral scores, agent metadata, and device fingerprints for one million or more nodes into this trie would cause severe state bloat and degrade sync times.
+PoB-specific data (behavioral scores, registration records, heartbeats) is stored in a separate agent state trie. Its Merkle root is embedded in the block header's Extra field, keeping the main state trie clean.
 
-ProbeChain maintains a **separate agent state trie** that stores all PoB-specific data — behavioral scores, registration records, heartbeat status, and scoring history. This trie is not part of the main state trie.
+### 10.2 Design Target
 
-The agent trie's **Merkle root is embedded in the block header's Extra field**, ensuring that agent state is committed to and verifiable from the canonical chain without polluting the main state.
-
-### 9.2 Design Target
-
-The architecture is designed for **1,000,000+ nodes** participating in consensus simultaneously. The combination of the three-tier relay network, Bloom filter heartbeats, BLS-aggregated attestations, and a separated state trie makes this target achievable without requiring nodes to have data center-grade hardware.
-
-### 9.3 Block Header Commitment
-
-```
-Block Header
-├── Standard Fields (parentHash, stateRoot, txRoot, ...)
-└── Extra Field
-    └── Agent Trie Merkle Root (32 bytes)
-```
-
-Any full node can independently verify the agent state by reconstructing the agent trie and comparing its root to the committed value in the block header. Light clients can verify individual agent records using Merkle proofs against this root.
+1,000,000+ nodes participating simultaneously, enabled by the three-tier relay, Bloom filter heartbeats, BLS aggregation, and separated state trie.
 
 ---
 
-## 10. Why ProbeChain Is Competitive
+## 11. Why ProbeChain Is Competitive
 
-### 10.1 Comparative Analysis
+| Property | Bitcoin (PoW) | Ethereum (PoS) | ProbeChain (PoB) |
+|----------|--------------|-----------------|-------------------|
+| Consensus Basis | Energy | Capital (32 ETH) | Behavioral scoring |
+| Block Time | ~10 min | ~12 sec | 400 ms |
+| Empty Block Reward | Full subsidy | Full subsidy | 0.00000001 PROBE |
+| Supply Model | 21M fixed | Deflationary | OZ Gold Standard |
+| Emission Tied to Activity | No | No | Yes (volume-coupled) |
+| Emission Decay | Time-based halving | Burn rate | Gold-reserve linear decay |
+| Anti-Sybil | PoW cost | 32 ETH stake | Gas floor + MinTxValue (4.2x margin) |
+| Node Types | Miners | Validators | Agent + Physical |
+| Target Nodes | ~15K | ~900K | 1M+ |
 
-| Property                  | Bitcoin (PoW)          | Ethereum (PoS)        | ProbeChain (PoB)                  |
-|---------------------------|------------------------|------------------------|-----------------------------------|
-| Consensus Basis           | Energy expenditure     | Capital lockup (32 ETH)| Behavioral scoring               |
-| Block Time                | ~10 minutes            | ~12 seconds            | 400 ms                           |
-| Empty Block Reward        | Full subsidy           | Full subsidy           | 0.0001 PROBE                     |
-| Total Supply              | 21M BTC (fixed)        | Deflationary (variable)| GDP-driven (no fixed cap)        |
-| Emission Tied to Activity | No                     | No                     | Yes                              |
-| Node Onboarding           | ASIC hardware          | 32 ETH (~$80K+)       | `npx probechain-agent`           |
-| Node Types                | Miners                 | Validators             | Agent Nodes + Physical Nodes     |
-| Target Node Count         | ~15K                   | ~900K                  | 1M+                              |
-
-### 10.2 Economic Flywheel
-
-ProbeChain's transaction-driven emission creates a positive feedback loop absent from fixed-emission chains:
+### Economic Flywheel
 
 ```
 More real transactions
     → Higher block rewards
         → More nodes attracted
             → Greater network capacity
-                → More transactions supported
-                    → (cycle repeats)
+                → PROBE price appreciation
+                    → Less PROBE needed for same OZ-denominated GDP
+                        → Less emission pressure
+                            → Greater scarcity
+                                → (virtuous cycle)
 ```
-
-During idle periods, near-zero emission prevents unnecessary dilution. The token supply grows only when the network is generating real economic value, aligning token holder interests with network utility.
-
-### 10.3 GDP-Based Emission Target
-
-Tying emission to a GDP target is both narratively compelling and economically grounded. It asserts that the purpose of ProbeChain is to build an autonomous agent economy of meaningful scale — not to distribute tokens on a predetermined schedule. The $150 trillion target, pegged to 2026 human GDP, sets a clear and audacious goal: the agent economy should eventually rival the human economy in throughput. Until it does, emission continues to incentivize growth.
-
-### 10.4 Accessibility
-
-The single-command onboarding for Agent Nodes (`npx probechain-agent`) eliminates the capital and infrastructure barriers that restrict participation in PoW and PoS networks. Any developer with a computer and an internet connection can join the network and begin earning rewards immediately. For Physical Nodes, the only requirement is a real physical device with verifiable hardware — no specialized equipment, no minimum stake.
 
 ---
 
 ## Conclusion
 
-ProbeChain's Rydberg mainnet introduces a fundamentally different approach to blockchain consensus. By scoring behavior rather than measuring resource commitment, it opens participation to AI agents and physical devices alike. By tying emission to real economic activity and capping it at a GDP-derived target, it aligns incentives with genuine utility. And by engineering a relay architecture for million-node scale at 400 ms block times, it provides the throughput that the agent economy demands.
+ProbeChain's PoB V2.1 with the OZ Gold Standard represents a fundamentally different approach to blockchain economics. By tying emission to both real transaction volume and physical gold reserves, it creates a system where:
 
-The technical foundations described in this paper — Proof-of-Behavior scoring, transaction-driven rewards, ERC-8004 identity, hardware fingerprinting, XOR-distance relay assignment, BLS-aggregated attestations, and a separated agent state trie — constitute a cohesive system designed from first principles for a world in which autonomous agents are economic actors, and physical devices are infrastructure participants.
+1. **Token emission reflects genuine economic activity**, not elapsed time
+2. **Emission decay is physically verifiable** — Probe Banks' gold reserves are auditable
+3. **Anti-Sybil protection is mathematically guaranteed** — attacking costs 4.2x more than it rewards
+4. **The transition to fee-only is smooth** — linear decay, no cliff events
+
+The design philosophy is clear: Bitcoin solved central bank money printing with a fixed supply. ProbeChain solves Agent GDP measurement, settlement, and behavior governance with volume-coupled emission and gold-reserve-based decay.
 
 ---
 
 **Chain ID:** 8004
 **Block Time:** 400 ms
-**Consensus:** Proof-of-Behavior (PoB)
+**Consensus:** Proof-of-Behavior V2.1
 **Native Token:** PROBE
-**Emission Target:** Agent GDP = $150 trillion equivalent
+**Emission Model:** OZ Gold Standard
+**Emission Halt:** 36,000 metric tons of gold (1,157,425,200 OZ)
 
 ---
 

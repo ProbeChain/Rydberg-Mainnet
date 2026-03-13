@@ -79,8 +79,9 @@ type Snapshot struct {
 	PhysicalNodes     map[common.Address]*PhysicalNodeScore   `json:"physicalNodes,omitempty"`     // Registered Physical nodes
 	PhysicalHistories map[common.Address]*PhysicalNodeHistory `json:"physicalHistories,omitempty"` // Physical node histories
 
-	// PoB V2: Agent GDP tracking
-	CumulativeAgentGDP *big.Int `json:"cumulativeAgentGDP,omitempty"` // Cumulative on-chain tx volume (wei)
+	// PoB V2.1: OZ Gold Standard
+	GoldReserveOZ    *big.Int `json:"goldReserveOZ,omitempty"`    // Probe Banks gold reserves (whole troy ounces)
+	CumulativeGDPWei *big.Int `json:"cumulativeGDPWei,omitempty"` // Cumulative qualified GDP in wei (measurement only)
 }
 
 // validatorsAscending implements the sort interface to allow sorting a list of addresses.
@@ -115,7 +116,8 @@ func newSnapshot(config *params.PobConfig, sigcache *lru.ARCCache, number uint64
 		RelayInfos:        make(map[common.Address]*RelayInfo),
 		PhysicalNodes:     make(map[common.Address]*PhysicalNodeScore),
 		PhysicalHistories: make(map[common.Address]*PhysicalNodeHistory),
-		CumulativeAgentGDP: new(big.Int),
+		GoldReserveOZ:    new(big.Int),
+		CumulativeGDPWei: new(big.Int),
 	}
 	for _, v := range validators {
 		snap.Validators[v] = DefaultBehaviorScore(initialScore, number)
@@ -169,10 +171,14 @@ func (s *Snapshot) copy() *Snapshot {
 		RelayInfos:        make(map[common.Address]*RelayInfo),
 		PhysicalNodes:     make(map[common.Address]*PhysicalNodeScore),
 		PhysicalHistories: make(map[common.Address]*PhysicalNodeHistory),
-		CumulativeAgentGDP: new(big.Int),
+		GoldReserveOZ:    new(big.Int),
+		CumulativeGDPWei: new(big.Int),
 	}
-	if s.CumulativeAgentGDP != nil {
-		cpy.CumulativeAgentGDP.Set(s.CumulativeAgentGDP)
+	if s.GoldReserveOZ != nil {
+		cpy.GoldReserveOZ.Set(s.GoldReserveOZ)
+	}
+	if s.CumulativeGDPWei != nil {
+		cpy.CumulativeGDPWei.Set(s.CumulativeGDPWei)
 	}
 	for addr, score := range s.Validators {
 		scoreCopy := *score

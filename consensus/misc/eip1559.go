@@ -85,9 +85,15 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header) *big.Int {
 		y := x.Div(x, parentGasTargetBig)
 		baseFeeDelta := x.Div(y, baseFeeChangeDenominator)
 
+		// Floor at InitialBaseFee (1 Gwei) instead of zero.
+		// This guarantees a minimum gas cost per transaction, which is critical
+		// for anti-Sybil economics in the PoB V2.1 reward model.
+		// Without this floor, base fee drops to zero in ~40 seconds of empty blocks,
+		// allowing zero-cost spam attacks.
+		minBaseFee := new(big.Int).SetUint64(params.InitialBaseFee)
 		return math.BigMax(
 			x.Sub(parent.BaseFee, baseFeeDelta),
-			common.Big0,
+			minBaseFee,
 		)
 	}
 }

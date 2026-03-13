@@ -22,8 +22,10 @@ profile.cov
 
 # Runtime data and binaries
 /node_data/
+/node-data/
 /data/
 /gprobe
+/Rydberg-Mainnet-main/
 /gprobe*.zip
 /probekey
 /bootnode

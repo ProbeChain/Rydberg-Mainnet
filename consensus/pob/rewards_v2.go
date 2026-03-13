@@ -26,34 +26,153 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// PoB V2 Reward Model
+// PoB V2.1 Reward Model — OZ Gold Standard
 // ---------------------------------------------------------------------------
 //
-// Two node types:
-//   Agent Node (PoB-A)    — AI agents, rewarded for inter-agent settlement processing
-//   Physical Node (PoB-P) — any physical device, rewarded for storage contribution
+// Philosophy:
+//   Bitcoin solved central bank money printing (fixed supply, time-based halving).
+//   PROBE solves Agent GDP measurement, settlement, and behavior governance
+//   (volume-coupled emission, gold-reserve-based decay).
 //
-// Block reward = f(txCount):
-//   0 real tx  → 0.0001 PROBE
-//   1 real tx  → 0.0002 PROBE
-//   N real tx  → (N+1) × 0.0001 PROBE
-//   Cap at 100K tx → 10 PROBE
+// OZ Gold Standard:
+//   OZ is Probe Banks' gold-backed token (1 OZ = 1 troy ounce of 99.99% gold).
+//   100% physical gold backing. No fractional reserve.
+//   OZ totalSupply() on-chain = Probe Banks' actual gold reserves.
 //
-// Emission halts when cumulative Agent GDP reaches target (~$150T).
+// Emission Halt Condition:
+//   When Probe Banks stores 36,000 metric tons of gold (1,157,425,200 OZ),
+//   PROBE emission stops. This parallels how global central banks' ~32,000
+//   tons of gold support $150 trillion of carbon-based GDP. Probe Banks'
+//   36,000 tons will support the silicon-based Agent GDP (denominated in OZ).
+//
+// Block Reward Formula:
+//   qualifiedVolume = Σ tx.Value() for qualified transactions
+//   decay = (1 - goldReserveOZ / targetOZ)^n
+//   reward = min(qualifiedVolume × rewardRate × decay, maxBlockReward)
+//   Empty block: heartbeatReward × decay
+//
+// Qualified Transaction Filter:
+//   - tx.Value() >= MinTxValueWei (default 0.01 PROBE)
+//   - tx.To() != sender (no self-transfers, when sender info available)
+//
+// Anti-Sybil Economics:
+//   Base fee floor at 1 Gwei (cannot drop to zero even with empty blocks).
+//   Each tx costs ≥ 21,000 gas × 1 Gwei = 0.000021 PROBE (burned via EIP-1559).
+//   At rewardRate = 5 bps (0.05%), break-even tx value = 0.042 PROBE.
+//   MinTxValue = 0.01 PROBE provides 4.2× safety margin:
+//     Reward for 0.01 PROBE tx: 0.01 × 5/10000 = 0.000005 PROBE
+//     Gas cost for 1 tx:        21000 × 1 Gwei  = 0.000021 PROBE
+//     Net: -0.000016 PROBE (loss, 4.2× margin) ✓
 
-// CalcBlockReward computes the block reward based on the number of real transactions.
-// reward = min((txCount + 1) * baseReward, maxReward)
-func CalcBlockReward(txCount uint64, config *params.PoBV2Config) *big.Int {
+// CalcQualifiedVolume computes the total value and count of qualified transactions.
+// A transaction qualifies if its value meets the minimum threshold.
+// When sender information is available (senders map), self-transfers are excluded.
+func CalcQualifiedVolume(txs []*types.Transaction, senders map[common.Hash]common.Address, config *params.PoBV2Config) (*big.Int, uint64) {
 	if config == nil {
 		config = params.DefaultPoBV2Config()
 	}
-	base := new(big.Int).SetUint64(config.BaseRewardWei)
-	count := txCount
-	if count > config.MaxTxPerBlock {
-		count = config.MaxTxPerBlock
+	minValue := new(big.Int).SetUint64(config.MinTxValueWei)
+	volume := new(big.Int)
+	var count uint64
+
+	for _, tx := range txs {
+		// Filter: value must meet minimum threshold
+		if tx.Value().Cmp(minValue) < 0 {
+			continue
+		}
+		// Filter: no self-transfers (when sender info available)
+		if senders != nil {
+			sender, ok := senders[tx.Hash()]
+			if ok && tx.To() != nil && sender == *tx.To() {
+				continue
+			}
+		}
+		volume.Add(volume, tx.Value())
+		count++
 	}
-	// (count + 1) * baseReward
-	reward := new(big.Int).Mul(base, new(big.Int).SetUint64(count+1))
+	return volume, count
+}
+
+// CalcDecayFactor returns the emission decay factor in basis points (0-10000).
+// decay = ((targetOZ - goldReserveOZ) / targetOZ)^n × 10000
+// Returns 10000 (full emission) when reserves are 0.
+// Returns 0 when reserves >= target (emission stops).
+func CalcDecayFactor(goldReserveOZ *big.Int, config *params.PoBV2Config) *big.Int {
+	if config == nil {
+		config = params.DefaultPoBV2Config()
+	}
+	target, ok := new(big.Int).SetString(config.GoldReserveTargetOZ, 10)
+	if !ok || target.Sign() <= 0 {
+		return new(big.Int).SetUint64(10000) // Unparseable target → full emission
+	}
+	if goldReserveOZ == nil || goldReserveOZ.Sign() <= 0 {
+		return new(big.Int).SetUint64(10000) // No reserves → full emission
+	}
+	if goldReserveOZ.Cmp(target) >= 0 {
+		return new(big.Int) // Target reached → zero emission
+	}
+
+	// Linear component: (target - reserve) × 10000 / target
+	remaining := new(big.Int).Sub(target, goldReserveOZ)
+	decay := new(big.Int).Mul(remaining, big.NewInt(10000))
+	decay.Div(decay, target)
+
+	// Apply exponent for non-linear decay (n > 1)
+	if config.DecayExponent > 1 {
+		base := new(big.Int).Set(decay)
+		for i := uint64(1); i < config.DecayExponent; i++ {
+			decay.Mul(decay, base)
+			decay.Div(decay, big.NewInt(10000))
+		}
+	}
+	return decay
+}
+
+// IsEmissionActive checks whether PROBE emission should continue.
+// Returns false when Probe Banks gold reserves have reached the target.
+func IsEmissionActive(goldReserveOZ *big.Int, config *params.PoBV2Config) bool {
+	if config == nil {
+		config = params.DefaultPoBV2Config()
+	}
+	target, ok := new(big.Int).SetString(config.GoldReserveTargetOZ, 10)
+	if !ok {
+		return true // Unparseable → keep emitting
+	}
+	if goldReserveOZ == nil {
+		return true // No data → keep emitting
+	}
+	return goldReserveOZ.Cmp(target) < 0
+}
+
+// CalcBlockReward computes the block reward based on qualified transaction volume
+// and current gold reserve decay factor.
+func CalcBlockReward(qualifiedVolume *big.Int, goldReserveOZ *big.Int, config *params.PoBV2Config) *big.Int {
+	if config == nil {
+		config = params.DefaultPoBV2Config()
+	}
+
+	decay := CalcDecayFactor(goldReserveOZ, config)
+	if decay.Sign() == 0 {
+		return new(big.Int) // Emission stopped
+	}
+
+	if qualifiedVolume == nil || qualifiedVolume.Sign() == 0 {
+		// Empty block: heartbeat reward × decay
+		heartbeat := new(big.Int).SetUint64(config.HeartbeatRewardWei)
+		heartbeat.Mul(heartbeat, decay)
+		heartbeat.Div(heartbeat, big.NewInt(10000))
+		return heartbeat
+	}
+
+	// reward = qualifiedVolume × rewardRateBps / 10000
+	reward := new(big.Int).Mul(qualifiedVolume, new(big.Int).SetUint64(config.RewardRateBps))
+	reward.Div(reward, big.NewInt(10000))
+
+	// Apply gold-reserve decay
+	reward.Mul(reward, decay)
+	reward.Div(reward, big.NewInt(10000))
+
+	// Cap at maximum block reward
 	max := new(big.Int).SetUint64(config.MaxBlockRewardWei)
 	if reward.Cmp(max) > 0 {
 		reward.Set(max)
@@ -81,48 +200,6 @@ func SplitBlockReward(totalReward *big.Int, config *params.PoBV2Config) (produce
 	producer.Sub(producer, physicalPool)
 
 	return producer, agentPool, physicalPool
-}
-
-// CountRealTransactions counts non-zero-value transactions in a block.
-// Zero-value transactions (like contract deployments with 0 value) are excluded
-// from the reward calculation to prevent spam gaming.
-func CountRealTransactions(txs []*types.Transaction) uint64 {
-	var count uint64
-	for _, tx := range txs {
-		if tx.Value().Sign() > 0 {
-			count++
-		}
-	}
-	return count
-}
-
-// CalcTxVolumeWei sums the total value (in wei) of all non-zero transactions.
-// This contributes to the Agent GDP calculation.
-func CalcTxVolumeWei(txs []*types.Transaction) *big.Int {
-	total := new(big.Int)
-	for _, tx := range txs {
-		if tx.Value().Sign() > 0 {
-			total.Add(total, tx.Value())
-		}
-	}
-	return total
-}
-
-// IsEmissionActive checks whether PROBE emission should continue.
-// Returns false when cumulative Agent GDP has reached the target.
-func IsEmissionActive(cumulativeGDP *big.Int, config *params.PoBV2Config) bool {
-	if config == nil {
-		config = params.DefaultPoBV2Config()
-	}
-	target, ok := new(big.Int).SetString(config.AgentGDPTargetWei, 10)
-	if !ok {
-		// If target is unparseable, emission continues
-		return true
-	}
-	if cumulativeGDP == nil {
-		return true
-	}
-	return cumulativeGDP.Cmp(target) < 0
 }
 
 // DistributeByScore distributes a reward pool proportionally to nodes by their behavior score.
@@ -168,7 +245,7 @@ func CalcPoBV2Difficulty(totalNodes uint64, config *params.PoBV2Config) uint64 {
 	return diff
 }
 
-// accumulateRewardsV2 implements the PoB V2 reward distribution.
+// accumulateRewardsV2 implements the PoB V2.1 reward distribution.
 // Called from PobFinalize when the PoB V2 fork is active.
 func accumulateRewardsV2(config *params.ChainConfig, statedb *state.StateDB, header *types.Header, txs []*types.Transaction, snap *Snapshot) {
 	v2cfg := config.PoBV2
@@ -176,55 +253,54 @@ func accumulateRewardsV2(config *params.ChainConfig, statedb *state.StateDB, hea
 		v2cfg = params.DefaultPoBV2Config()
 	}
 
-	// Check if emission is still active
-	gdp := snap.CumulativeAgentGDP
-	if gdp == nil {
-		gdp = new(big.Int)
+	// Check if emission is still active (based on Probe Banks gold reserves)
+	goldReserve := snap.GoldReserveOZ
+	if goldReserve == nil {
+		goldReserve = new(big.Int)
 	}
-	if !IsEmissionActive(gdp, v2cfg) {
-		return // GDP target reached, no more emission
+	if !IsEmissionActive(goldReserve, v2cfg) {
+		return // Gold reserve target reached, no more emission
 	}
 
-	// Count real (non-zero-value) transactions
-	realTxCount := CountRealTransactions(txs)
+	// Calculate qualified transaction volume (MinTxValue filter applied)
+	// Phase 1: sender info not available, self-transfer check skipped
+	qualifiedVolume, _ := CalcQualifiedVolume(txs, nil, v2cfg)
 
-	// Calculate block reward based on tx count
-	totalReward := CalcBlockReward(realTxCount, v2cfg)
+	// Calculate block reward (volume-coupled × gold-reserve decay)
+	totalReward := CalcBlockReward(qualifiedVolume, goldReserve, v2cfg)
 
 	// Split reward: producer, agent pool, physical pool
 	producerReward, agentPool, physicalPool := SplitBlockReward(totalReward, v2cfg)
 
 	// 1. Block producer gets their share
+	producer := header.ValidatorAddr
 	if producerReward.Sign() > 0 {
-		statedb.AddBalance(header.Coinbase, producerReward)
+		statedb.AddBalance(producer, producerReward)
 	}
 
-	// 2. Distribute agent pool by score
+	// 2. Distribute agent pool by behavior score
 	agentScores := make(map[common.Address]uint64, len(snap.Agents))
 	for addr, score := range snap.Agents {
 		agentScores[addr] = score.Total
 	}
 	remainder := DistributeByScore(statedb, agentPool, agentScores)
-	// Give agent remainder to producer
 	if remainder.Sign() > 0 {
-		statedb.AddBalance(header.Coinbase, remainder)
+		statedb.AddBalance(producer, remainder)
 	}
 
-	// 3. Distribute physical node pool by score
+	// 3. Distribute physical node pool by behavior score
 	physicalScores := make(map[common.Address]uint64, len(snap.PhysicalNodes))
 	for addr, score := range snap.PhysicalNodes {
 		physicalScores[addr] = score.Total
 	}
 	remainder = DistributeByScore(statedb, physicalPool, physicalScores)
-	// Give physical remainder to producer
 	if remainder.Sign() > 0 {
-		statedb.AddBalance(header.Coinbase, remainder)
+		statedb.AddBalance(producer, remainder)
 	}
 
-	// 4. Update cumulative Agent GDP
-	txVolume := CalcTxVolumeWei(txs)
-	if snap.CumulativeAgentGDP == nil {
-		snap.CumulativeAgentGDP = new(big.Int)
+	// 4. Track cumulative GDP (for measurement/analytics, does NOT affect emission)
+	if snap.CumulativeGDPWei == nil {
+		snap.CumulativeGDPWei = new(big.Int)
 	}
-	snap.CumulativeAgentGDP.Add(snap.CumulativeAgentGDP, txVolume)
+	snap.CumulativeGDPWei.Add(snap.CumulativeGDPWei, qualifiedVolume)
 }
