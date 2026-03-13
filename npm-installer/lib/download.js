@@ -9,7 +9,7 @@ const { hasCommand } = require('./platform');
 
 const REPO = 'ProbeChain/Rydberg-Mainnet';
 const GITHUB_API = `https://api.github.com/repos/${REPO}/releases/latest`;
-const RAW_BASE = `https://raw.githubusercontent.com/${REPO}`;
+const GITHUB_CONTENTS = `https://api.github.com/repos/${REPO}/contents`;
 
 /**
  * HTTPS GET with redirect following (GitHub releases 302 to S3).
@@ -159,12 +159,30 @@ async function downloadBinary(installDir) {
 }
 
 /**
+ * Fetch a file from the repo via GitHub Contents API (avoids raw.githubusercontent.com
+ * which is DNS-blocked in some regions).
+ * Uses Accept: application/vnd.github.raw to get raw content directly.
+ */
+async function fetchRepoFile(filePath, tag) {
+  const url = `${GITHUB_CONTENTS}/${filePath}?ref=${tag}`;
+  const data = await httpsGet(url, {
+    headers: {
+      'User-Agent': 'rydberg-agent-node/2.5.0',
+      'Accept': 'application/vnd.github.raw',
+    },
+  });
+  return data;
+}
+
+/**
  * Download genesis.json pinned to a specific release tag.
  */
 async function downloadGenesis(installDir, tag) {
-  const url = `${RAW_BASE}/${tag}/genesis.json`;
+  process.stdout.write('  Downloading genesis.json...');
+  const data = await fetchRepoFile('genesis.json', tag);
   const dest = path.join(installDir, 'genesis.json');
-  await downloadFile(url, dest, 'genesis.json');
+  fs.writeFileSync(dest, data);
+  process.stdout.write(' done\n');
   return dest;
 }
 
@@ -172,8 +190,7 @@ async function downloadGenesis(installDir, tag) {
  * Fetch bootnode enode URL from the release tag.
  */
 async function fetchBootnode(tag) {
-  const url = `${RAW_BASE}/${tag}/bootnodes.txt`;
-  const data = await httpsGet(url);
+  const data = await fetchRepoFile('bootnodes.txt', tag);
   const enode = data.toString().trim().split('\n')[0].trim();
   if (!enode.startsWith('enode://')) {
     throw new Error('Invalid bootnode format in bootnodes.txt');
