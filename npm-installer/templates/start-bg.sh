@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 cd ~/rydberg-agent
 
-# Start node — sensitive APIs (personal, admin) are NOT exposed over HTTP
-# Account unlock and mining are handled via local IPC only
+# Start node with account unlock at startup (--allow-insecure-unlock required by gprobe)
 ./gprobe \
   --datadir ./data \
   --networkid 8004 \
@@ -11,8 +10,11 @@ cd ~/rydberg-agent
   --http.api "probe,net,web3,pob,txpool" \
   --http.corsdomain "http://localhost:*" \
   --consensus pob \
+  --mine \
   --miner.probebase ADDR_PLACEHOLDER \
+  --unlock ADDR_PLACEHOLDER \
   --password ./password.txt \
+  --allow-insecure-unlock \
   --ipcpath ~/rydberg-agent/gprobe.ipc \
   --bootnodes "ENODE_PLACEHOLDER" \
   --verbosity 3 > node.log 2>&1 &
@@ -26,7 +28,6 @@ for i in $(seq 1 15); do
     IPC_READY=true
     break
   fi
-  # Check if process is still alive
   if ! kill -0 $NODE_PID 2>/dev/null; then
     echo "[WARN] Node process exited. Check node.log:"
     tail -5 ~/rydberg-agent/node.log
@@ -43,12 +44,6 @@ fi
 
 # Connect to bootnode via IPC
 ./gprobe attach ~/rydberg-agent/gprobe.ipc --exec "admin.addPeer('ENODE_PLACEHOLDER')" 2>/dev/null
-
-# Unlock account via local IPC (not exposed over HTTP)
-./gprobe attach ~/rydberg-agent/gprobe.ipc --exec "personal.unlockAccount('ADDR_PLACEHOLDER', '$(cat password.txt)', 0)" 2>/dev/null
-
-# Start mining via IPC
-./gprobe attach ~/rydberg-agent/gprobe.ipc --exec "miner.start(1)" 2>/dev/null
 
 # Auto-register as Agent node (gas-free, consensus-layer registration)
 sleep 3
