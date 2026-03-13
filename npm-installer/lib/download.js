@@ -11,6 +11,20 @@ const REPO = 'ProbeChain/Rydberg-Mainnet';
 const GITHUB_API = `https://api.github.com/repos/${REPO}/releases/latest`;
 const GITHUB_CONTENTS = `https://api.github.com/repos/${REPO}/contents`;
 
+// GitHub proxy mirrors for China network acceleration
+// User can override with GITHUB_PROXY env var
+const GITHUB_PROXIES = [
+  '', // direct first
+  'https://ghproxy.net/',
+  'https://gh-proxy.com/',
+];
+
+function getProxies() {
+  const envProxy = process.env.GITHUB_PROXY;
+  if (envProxy) return ['', envProxy.replace(/\/$/, '') + '/'];
+  return GITHUB_PROXIES;
+}
+
 /**
  * HTTPS GET with redirect following (GitHub releases 302 to S3).
  * Returns a Promise<Buffer>.
@@ -18,8 +32,8 @@ const GITHUB_CONTENTS = `https://api.github.com/repos/${REPO}/contents`;
 function httpsGet(url, opts = {}) {
   return new Promise((resolve, reject) => {
     const options = {
-      headers: { 'User-Agent': 'rydberg-agent-node/2.5.1' },
-      timeout: 30000,
+      headers: { 'User-Agent': 'rydberg-agent-node/2.5.10' },
+      timeout: 120000,
       ...opts,
     };
     const req = https.get(url, options, (res) => {
@@ -59,14 +73,29 @@ async function httpsGetWithRetry(url, opts = {}, retries = 3) {
 }
 
 /**
- * Download a file and write to disk, with a progress indicator.
+ * Download a file with proxy fallback for China network.
+ * Tries direct first, then GitHub proxy mirrors.
  */
-async function downloadFile(url, dest, label) {
-  process.stdout.write(`  Downloading ${label}...`);
-  const buf = await httpsGetWithRetry(url);
-  fs.writeFileSync(dest, buf);
-  process.stdout.write(` done (${(buf.length / 1024 / 1024).toFixed(1)} MB)\n`);
-  return dest;
+async function downloadFileWithProxy(url, dest, label) {
+  const proxies = getProxies();
+  for (let i = 0; i < proxies.length; i++) {
+    const proxyUrl = proxies[i] ? proxies[i] + url : url;
+    const via = proxies[i] ? ` via ${proxies[i].replace('https://', '').replace('/', '')}` : '';
+    try {
+      process.stdout.write(`  Downloading ${label}${via}...`);
+      const buf = await httpsGetWithRetry(proxyUrl, {}, 2);
+      fs.writeFileSync(dest, buf);
+      process.stdout.write(` done (${(buf.length / 1024 / 1024).toFixed(1)} MB)\n`);
+      return dest;
+    } catch (err) {
+      process.stdout.write(` failed\n`);
+      if (i < proxies.length - 1) {
+        console.log(`  Trying mirror...`);
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
 /**
@@ -132,6 +161,7 @@ function verifyGpg(sha256sumsPath, sigPath, pubkeyPath) {
 /**
  * Download pre-built binary for macOS arm64.
  * Performs SHA256 + optional GPG verification.
+ * Uses proxy mirrors as fallback for China network.
  */
 async function downloadBinary(installDir) {
   const { tag, assets } = await fetchRelease();
@@ -147,18 +177,18 @@ async function downloadBinary(installDir) {
   const tarPath = path.join(installDir, tarAsset.name);
   const sumPath = path.join(installDir, 'SHA256SUMS');
 
-  await downloadFile(tarAsset.url, tarPath, 'gprobe binary');
-  await downloadFile(sumAsset.url, sumPath, 'SHA256SUMS');
+  await downloadFileWithProxy(tarAsset.url, tarPath, 'gprobe binary');
+  await downloadFileWithProxy(sumAsset.url, sumPath, 'SHA256SUMS');
 
   // GPG verification (optional)
   let sigPath = null, keyPath = null;
   if (sigAsset) {
     sigPath = path.join(installDir, 'SHA256SUMS.asc');
-    await downloadFile(sigAsset.url, sigPath, 'SHA256SUMS.asc');
+    await downloadFileWithProxy(sigAsset.url, sigPath, 'SHA256SUMS.asc');
   }
   if (keyAsset) {
     keyPath = path.join(installDir, 'probechain-gpg-public.asc');
-    await downloadFile(keyAsset.url, keyPath, 'GPG public key');
+    await downloadFileWithProxy(keyAsset.url, keyPath, 'GPG public key');
   }
   if (sigPath && keyPath) {
     verifyGpg(sumPath, sigPath, keyPath);
@@ -189,7 +219,7 @@ async function fetchRepoFile(filePath, tag) {
   const url = `${GITHUB_CONTENTS}/${filePath}?ref=${tag}`;
   const data = await httpsGetWithRetry(url, {
     headers: {
-      'User-Agent': 'rydberg-agent-node/2.5.1',
+      'User-Agent': 'rydberg-agent-node/2.5.10',
       'Accept': 'application/vnd.github.raw',
     },
   });

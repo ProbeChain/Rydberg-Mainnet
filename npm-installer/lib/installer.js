@@ -203,11 +203,17 @@ async function cmdInstall() {
   fs.writeFileSync(PASSWORD_FILE, pwd, { mode: 0o600 });
   ok('Password saved');
 
-  // 4. Download or build gprobe
+  // 4. Download or build gprobe (fallback to source build if download fails)
   let releaseTag;
   if (info.prebuilt) {
-    log('Downloading pre-built binary (macOS arm64)...');
-    releaseTag = await downloadBinary(INSTALL_DIR);
+    try {
+      log('Downloading pre-built binary (macOS arm64)...');
+      releaseTag = await downloadBinary(INSTALL_DIR);
+    } catch (err) {
+      warn(`Binary download failed: ${err.message}`);
+      log('Falling back to building from source...');
+      releaseTag = await buildFromSource(INSTALL_DIR);
+    }
   } else {
     log('Building from source...');
     releaseTag = await buildFromSource(INSTALL_DIR);
