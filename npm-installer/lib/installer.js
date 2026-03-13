@@ -218,7 +218,17 @@ async function cmdInstall() {
   // 6. Create account
   log('Creating account...');
   const accountOutput = gprobe('--datadir', './data', 'account', 'new', '--password', 'password.txt');
-  const addrMatch = accountOutput.match(/0x[0-9a-fA-F]{40}/);
+  // Match pro1... (bech32) or 0x... (hex) address format
+  let addrMatch = accountOutput.match(/pro1[a-z0-9]{38,}/) || accountOutput.match(/0x[0-9a-fA-F]{40}/);
+  if (!addrMatch) {
+    // Fallback: extract hex address from keystore filename
+    const keystoreDir = path.join(DATA_DIR, 'keystore');
+    if (fs.existsSync(keystoreDir)) {
+      const files = fs.readdirSync(keystoreDir);
+      const hexMatch = files.length > 0 && files[0].match(/([0-9a-f]{40})/);
+      if (hexMatch) addrMatch = ['0x' + hexMatch[1]];
+    }
+  }
   if (!addrMatch) {
     fail(`Failed to create account. Output:\n${accountOutput}`);
   }
