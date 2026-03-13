@@ -30,7 +30,7 @@
             "nodesPerDifficultyUp": 1000
         },
         "pob": {
-            "period": 0,
+            "period": 15,
             "tickIntervalMs": 400,
             "epoch": 30000,
             "initialScore": 5000,

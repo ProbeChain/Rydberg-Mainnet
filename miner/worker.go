@@ -655,6 +655,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				// Single-validator mode: auto-produce next block without waiting for
 				// behavior proofs or external acks (genesis bootstrap)
 				if ValidatorWitnessCount == 1 && w.imProducer(blockNumber.Uint64()+1) {
+					if period := w.chainConfig.Pob.Period; period > 0 {
+						time.Sleep(time.Duration(period) * time.Second)
+					}
 					log.Info("Single-validator mode: auto-producing next block", "addr", w.coinbase, "next", blockNumber.Uint64()+1)
 					commit(false, commitInterruptNewHead, blockNumber.Uint64()+1)
 				}
