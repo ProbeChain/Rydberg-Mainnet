@@ -1,0 +1,33 @@
+{
+  "name": "rydberg-agent-node",
+  "version": "2.5.0",
+  "description": "One-command ProbeChain Rydberg testnet Agent node installer",
+  "bin": {
+    "rydberg-agent-node": "./bin/rydberg-agent-node.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ProbeChain/Rydberg-Mainnet.git"
+  },
+  "homepage": "https://probechain.org",
+  "license": "GPL-3.0",
+  "files": [
+    "bin/",
+    "lib/",
+    "templates/",
+    "README.md"
+  ],
+  "keywords": [
+    "probechain",
+    "rydberg",
+    "blockchain",
+    "agent-node",
+    "pob",
+    "testnet",
+    "installer"
+  ],
+  "author": "ProbeChain <dev@probechain.org>"
+}

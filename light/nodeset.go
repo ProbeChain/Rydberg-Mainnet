@@ -1,30 +1,20 @@
+// Package light implements on-demand retrieval capable state and chain objects
+// for the ProbeChain Light Probe Subprotocol.
+// This is a minimal stub providing only types needed by snap sync.
 package light
 
 import (
 	"errors"
 
+	"github.com/probechain/go-probe/common"
 	"github.com/probechain/go-probe/probedb"
 	"github.com/probechain/go-probe/rlp"
+	"golang.org/x/crypto/sha3"
 )
 
-// NodeList stores an ordered list of trie nodes for Merkle proofs.
-type NodeList []rlp.RawValue
+var errNotFound = errors.New("not found")
 
-// NodeSet converts the node list to a NodeSet.
-func (n NodeList) NodeSet() *NodeSet {
-	db := NewNodeSet()
-	for i, node := range n {
-		key := make([]byte, 8)
-		key[0] = byte(i >> 24)
-		key[1] = byte(i >> 16)
-		key[2] = byte(i >> 8)
-		key[3] = byte(i)
-		db.Put(key, []byte(node))
-	}
-	return db
-}
-
-// NodeSet stores a set of trie nodes for Merkle proofs.
+// NodeSet stores a set of trie nodes. It implements trie.DatabaseReader.
 type NodeSet struct {
 	nodes map[string][]byte
 	order []string
@@ -37,12 +27,12 @@ func NewNodeSet() *NodeSet {
 
 // Put stores a new node in the set.
 func (db *NodeSet) Put(key []byte, value []byte) error {
-	k := string(key)
-	if _, ok := db.nodes[k]; ok {
+	if _, ok := db.nodes[string(key)]; ok {
 		return nil
 	}
-	db.nodes[k] = value
-	db.order = append(db.order, k)
+	keystr := string(key)
+	db.nodes[keystr] = common.CopyBytes(value)
+	db.order = append(db.order, keystr)
 	return nil
 }
 
@@ -57,10 +47,10 @@ func (db *NodeSet) Get(key []byte) ([]byte, error) {
 	if entry, ok := db.nodes[string(key)]; ok {
 		return entry, nil
 	}
-	return nil, errors.New("not found")
+	return nil, errNotFound
 }
 
-// Has returns whether a node is in the set.
+// Has returns true if the node set contains the given key.
 func (db *NodeSet) Has(key []byte) (bool, error) {
 	_, ok := db.nodes[string(key)]
 	return ok, nil
@@ -71,18 +61,39 @@ func (db *NodeSet) KeyCount() int {
 	return len(db.nodes)
 }
 
-// NodeList returns the list of trie nodes.
+// NodeList converts the node set to a NodeList.
 func (db *NodeSet) NodeList() NodeList {
-	var list NodeList
-	for _, k := range db.order {
-		list = append(list, db.nodes[k])
+	result := make(NodeList, 0, len(db.order))
+	for _, key := range db.order {
+		result = append(result, db.nodes[key])
 	}
-	return list
+	return result
 }
 
-// Store writes the contents of the set to the given database.
-func (db *NodeSet) Store(target probedb.KeyValueWriter) {
-	for _, k := range db.order {
-		target.Put([]byte(k), db.nodes[k])
+// NodeList stores an ordered list of trie nodes (RLP-encoded blobs).
+type NodeList []rlp.RawValue
+
+// NodeSet converts the node list to a NodeSet (key = keccak256(blob)).
+func (n NodeList) NodeSet() *NodeSet {
+	db := NewNodeSet()
+	for _, node := range n {
+		hasher := sha3.NewLegacyKeccak256()
+		hasher.Write(node)
+		var key common.Hash
+		hasher.Sum(key[:0])
+		db.nodes[string(key[:])] = node
+		db.order = append(db.order, string(key[:]))
+	}
+	return db
+}
+
+// Store adds the contents of the node list to an existing database.
+func (n NodeList) Store(db probedb.KeyValueWriter) {
+	for _, node := range n {
+		hasher := sha3.NewLegacyKeccak256()
+		hasher.Write(node)
+		var key common.Hash
+		hasher.Sum(key[:0])
+		db.Put(key[:], node)
 	}
 }

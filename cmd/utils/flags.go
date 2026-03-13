@@ -1586,11 +1586,10 @@ func SetDNSDiscoveryDefaults(cfg *probeconfig.Config, genesis common.Hash) {
 }
 
 // RegisterProbeService adds a ProbeChain client to the stack.
-// The second return value is the full node instance, which may be nil if the
-// node is running as a light client.
+// The second return value is the full node instance.
 func RegisterProbeService(stack *node.Node, cfg *probeconfig.Config) (probeapi.Backend, *probe.Probeum) {
 	if cfg.SyncMode == downloader.LightSync {
-		Fatalf("Light sync mode is not supported in Rydberg mainnet")
+		Fatalf("Light client mode is not supported in Rydberg testnet")
 	}
 	backend, err := probe.New(stack, cfg)
 	if err != nil {

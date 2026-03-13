@@ -1,3 +1,5 @@
+// Package core implements the core functionality of the external signer (clef).
+// This is a minimal stub providing only the SendTxArgs type.
 package core
 
 import (
@@ -17,7 +19,7 @@ type SendTxArgs struct {
 	Value                hexutil.Big              `json:"value"`
 	Nonce                hexutil.Uint64           `json:"nonce"`
 	Data                 *hexutil.Bytes           `json:"data"`
-	Input                *hexutil.Bytes           `json:"input"`
+	Input                *hexutil.Bytes           `json:"input,omitempty"`
 	ChainID              *hexutil.Big             `json:"chainId,omitempty"`
 	AccessList           *types.AccessList        `json:"accessList,omitempty"`
 }

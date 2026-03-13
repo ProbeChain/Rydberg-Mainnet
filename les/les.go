@@ -1,28 +1,30 @@
+// Package les implements the Light ProbeChain Subprotocol.
+// This is a minimal stub — light client mode is not supported in Rydberg.
 package les
 
 import (
-	"fmt"
+	"errors"
 
+	"github.com/probechain/go-probe/internal/probeapi"
 	"github.com/probechain/go-probe/node"
 	"github.com/probechain/go-probe/probe"
 	"github.com/probechain/go-probe/probe/probeconfig"
-	"github.com/probechain/go-probe/probe/tracers"
 )
 
 // LightProbe implements the light client.
 type LightProbe struct {
-	ApiBackend tracers.Backend
+	ApiBackend probeapi.Backend
 }
 
-// New creates a new light client (stub — not supported in Rydberg).
+// New creates a light client instance. Stub: returns error (not supported).
 func New(stack *node.Node, cfg *probeconfig.Config) (*LightProbe, error) {
-	return nil, fmt.Errorf("light sync mode is not supported in Rydberg mainnet")
+	return nil, errors.New("light client mode is not supported in Rydberg testnet")
 }
 
 // LesServer implements the LES server.
 type LesServer struct{}
 
-// NewLesServer creates a new LES server (stub — not supported in Rydberg).
+// NewLesServer creates a LES server. Stub: returns error (not supported).
 func NewLesServer(stack *node.Node, backend *probe.Probeum, cfg *probeconfig.Config) (*LesServer, error) {
-	return nil, fmt.Errorf("LES server is not supported in Rydberg mainnet")
+	return nil, errors.New("LES server is not supported in Rydberg testnet")
 }
