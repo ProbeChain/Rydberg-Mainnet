@@ -70,11 +70,6 @@ var (
 	// Distributed proportionally to SmartLight nodes by behavior score.
 	BlockRewardSmartLightPool = big.NewInt(2e+17)
 
-	// BlockRewardAgentPool is the per-block reward allocated to the Agent pool.
-	// 0.1 PROBE per block → 3,000 PROBE per epoch (30,000 blocks).
-	// Distributed proportionally to Agent nodes by behavior score at epoch boundaries.
-	BlockRewardAgentPool = big.NewInt(1e+17)
-
 	epochLength = uint64(30000) // Default number of blocks after which to checkpoint
 
 	extraVanity = 32                     // Fixed number of extra-data prefix bytes reserved for vanity
@@ -184,28 +179,12 @@ type ProofOfBehavior struct {
 	signFn SignerFn       // Signer function to authorize hashes with
 	lock   sync.RWMutex   // Protects the signer fields
 
-	// Node registration queue (encoded into header.Extra by miner)
+	// Node registration queue (encoded into header.Extra by Prepare)
 	pendingRegistrations []TestnetRegistration
 	regLock              sync.Mutex
 
 	// The fields below are for testing only
 	fakeDiff bool // Skip difficulty verifications
-}
-
-// AddPendingRegistration queues a node registration to be included in the next block.
-func (c *ProofOfBehavior) AddPendingRegistration(addr common.Address, nodeType uint8) {
-	c.regLock.Lock()
-	defer c.regLock.Unlock()
-	c.pendingRegistrations = append(c.pendingRegistrations, TestnetRegistration{Address: addr, NodeType: nodeType})
-}
-
-// DrainPendingRegistrations returns and clears all pending registrations.
-func (c *ProofOfBehavior) DrainPendingRegistrations() []TestnetRegistration {
-	c.regLock.Lock()
-	defer c.regLock.Unlock()
-	regs := c.pendingRegistrations
-	c.pendingRegistrations = nil
-	return regs
 }
 
 // NewFaker creates a PoB consensus engine with a fake scheme that accepts
@@ -419,13 +398,14 @@ func (c *ProofOfBehavior) verifyHeader(chain consensus.ChainHeaderReader, header
 	}
 
 	// Ensure that the extra-data contains behavior data on checkpoint, but none otherwise
+	// Non-checkpoint blocks may contain registration data (valid format: [1B count][N × 21B])
 	number := header.Number.Uint64()
 	checkpoint := number%c.pobConfig.Epoch == 0
 	behaviorDataLen := len(header.Extra) - extraVanity - extraSeal
 	if behaviorDataLen < 0 {
 		behaviorDataLen = 0
 	}
-	if !checkpoint && behaviorDataLen != 0 {
+	if !checkpoint && behaviorDataLen > 0 {
 		// Allow valid registration data in non-checkpoint blocks
 		regData := header.Extra[extraVanity : len(header.Extra)-extraSeal]
 		if !isValidRegistrationData(regData) {
@@ -634,9 +614,49 @@ func (c *ProofOfBehavior) snapshot(chain consensus.ChainHeaderReader, number uin
 	return snap, err
 }
 
+// AddPendingRegistration queues a node registration for inclusion in the next block.
+func (c *ProofOfBehavior) AddPendingRegistration(addr common.Address, nodeType uint8) {
+	c.regLock.Lock()
+	defer c.regLock.Unlock()
+	c.pendingRegistrations = append(c.pendingRegistrations, TestnetRegistration{
+		Address:  addr,
+		NodeType: nodeType,
+	})
+}
+
+// DrainPendingRegistrations returns and clears all pending registrations.
+func (c *ProofOfBehavior) DrainPendingRegistrations() []TestnetRegistration {
+	c.regLock.Lock()
+	defer c.regLock.Unlock()
+	regs := c.pendingRegistrations
+	c.pendingRegistrations = nil
+	return regs
+}
+
 // Prepare implements consensus.Engine, preparing all the consensus fields of the
 // header for running the transactions on top.
 func (c *ProofOfBehavior) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+	number := header.Number.Uint64()
+	checkpoint := number%c.pobConfig.Epoch == 0
+
+	// Ensure vanity prefix
+	if len(header.Extra) < extraVanity {
+		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, extraVanity-len(header.Extra))...)
+	}
+	header.Extra = header.Extra[:extraVanity]
+
+	// For non-checkpoint blocks, encode pending registrations
+	if !checkpoint {
+		regs := c.DrainPendingRegistrations()
+		if len(regs) > 0 {
+			header.Extra = append(header.Extra, encodeRegistrations(regs)...)
+			log.Info("Encoded node registrations into block", "count", len(regs), "block", number)
+		}
+	}
+
+	// Add seal space
+	header.Extra = append(header.Extra, make([]byte, extraSeal)...)
+
 	return nil
 }
 
@@ -675,95 +695,9 @@ func accumulateSmartLightRewards(statedb *state.StateDB, snap *Snapshot) {
 	}
 }
 
-// accumulateAgentRewards distributes the Agent reward pool proportionally
-// to registered Agent nodes by their behavior score. Rewards are distributed
-// at epoch boundaries (every 30,000 blocks). Only the top 80% of agents by
-// score share the pool.
-func accumulateAgentRewards(statedb *state.StateDB, snap *Snapshot, header *types.Header) {
-	if len(snap.Agents) == 0 {
-		return
-	}
-	epoch := snap.config.Epoch
-	if epoch == 0 {
-		epoch = 30000
-	}
-	if header.Number.Uint64()%epoch != 0 {
-		return
-	}
-
-	// Calculate total epoch reward pool: BlockRewardAgentPool × epoch blocks
-	pool := new(big.Int).Mul(BlockRewardAgentPool, new(big.Int).SetUint64(epoch))
-
-	// Collect and sort agents by score to find top 80% threshold
-	type agentEntry struct {
-		addr  common.Address
-		score uint64
-	}
-	agents := make([]agentEntry, 0, len(snap.Agents))
-	for addr, score := range snap.Agents {
-		if score.Total > 0 {
-			agents = append(agents, agentEntry{addr: addr, score: score.Total})
-		}
-	}
-	if len(agents) == 0 {
-		return
-	}
-
-	// Sort descending by score
-	for i := 0; i < len(agents); i++ {
-		for j := i + 1; j < len(agents); j++ {
-			if agents[j].score > agents[i].score {
-				agents[i], agents[j] = agents[j], agents[i]
-			}
-		}
-	}
-
-	// Only top 80% of agents share the pool
-	cutoff := len(agents) * 80 / 100
-	if cutoff == 0 {
-		cutoff = 1
-	}
-	eligible := agents[:cutoff]
-
-	// Sum eligible scores
-	var totalScore uint64
-	for _, a := range eligible {
-		totalScore += a.score
-	}
-	if totalScore == 0 {
-		return
-	}
-
-	// Distribute proportionally
-	for _, a := range eligible {
-		reward := new(big.Int).Mul(pool, new(big.Int).SetUint64(a.score))
-		reward.Div(reward, new(big.Int).SetUint64(totalScore))
-		if reward.Sign() > 0 {
-			statedb.AddBalance(a.addr, reward)
-		}
-	}
-}
-
 // PobFinalize runs post-transaction state modifications including behavior-score-weighted rewards.
 func (c *ProofOfBehavior) PobFinalize(chain consensus.ChainHeaderReader, header *types.Header, statedb *state.StateDB, txs []*types.Transaction, powUncles []*types.BehaviorProof) {
-	snap, err := c.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, nil)
-
-	if chain.Config().IsPoBV2(header.Number) {
-		// PoB V2: transaction-count-based rewards, two node types
-		if err == nil {
-			accumulateRewardsV2(chain.Config(), statedb, header, txs, snap)
-		}
-	} else {
-		// Legacy reward model
-		accumulateRewards(chain.Config(), statedb, header, powUncles)
-		if err == nil {
-			accumulateSmartLightRewards(statedb, snap)
-			if chain.Config().IsAgentConsensus(header.Number) {
-				accumulateAgentRewards(statedb, snap, header)
-			}
-		}
-	}
-
+	accumulateRewards(chain.Config(), statedb, header, powUncles)
 	header.Root = statedb.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 }
 
@@ -774,7 +708,7 @@ func (c *ProofOfBehavior) Finalize(chain consensus.ChainHeaderReader, header *ty
 
 // FinalizeAndAssemble implements consensus.Engine.
 func (c *ProofOfBehavior) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, statedb *state.StateDB, txs []*types.Transaction, uncles []*types.BehaviorProof, receipts []*types.Receipt) (*types.Block, error) {
-	c.PobFinalize(chain, header, statedb, txs, uncles)
+	c.Finalize(chain, header, statedb, txs, nil)
 	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil
 }
 
@@ -796,6 +730,9 @@ func (c *ProofOfBehavior) Seal(chain consensus.ChainHeaderReader, block *types.B
 	}
 
 	// Sign the block
+	if c.signFn == nil {
+		return errors.New("signer not authorized yet")
+	}
 	sighash, err := c.signFn(accounts.Account{Address: c.signer}, accounts.MimetypeDataWithValidator, PobRLP(header))
 	if err != nil {
 		return err
@@ -806,6 +743,9 @@ func (c *ProofOfBehavior) Seal(chain consensus.ChainHeaderReader, block *types.B
 
 // AckSig signs a PoB acknowledgment.
 func (c *ProofOfBehavior) AckSig(ack *types.Ack) ([]byte, error) {
+	if c.signFn == nil {
+		return nil, errors.New("signer not authorized yet")
+	}
 	sighash, err := c.signFn(accounts.Account{Address: c.signer}, accounts.MimetypeDataWithValidator, PobAckRLP(ack))
 	if err != nil {
 		return nil, err

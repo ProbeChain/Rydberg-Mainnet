@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	atomicClock "github.com/probechain/go-probe/core/atomic"
-	"github.com/probechain/go-probe/consensus/misc"
 	"github.com/probechain/go-probe/consensus/pob"
 	"math/big"
 	"sync"
@@ -32,6 +31,7 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/probechain/go-probe/common"
 	"github.com/probechain/go-probe/consensus"
+	"github.com/probechain/go-probe/consensus/misc"
 	"github.com/probechain/go-probe/core"
 	"github.com/probechain/go-probe/core/state"
 	"github.com/probechain/go-probe/core/types"
@@ -652,25 +652,15 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 					log.Info("received new block, send ack to all failed", "addr", w.coinbase,
 						"current block number", blockNumber)
 				}
+				// Single-validator mode: auto-produce next block without waiting for
+				// behavior proofs or external acks (genesis bootstrap)
+				if ValidatorWitnessCount == 1 && w.imProducer(blockNumber.Uint64()+1) {
+					log.Info("Single-validator mode: auto-producing next block", "addr", w.coinbase, "next", blockNumber.Uint64()+1)
+					commit(false, commitInterruptNewHead, blockNumber.Uint64()+1)
+				}
 			}
 
 			// PoB: no PoW sealing needed
-
-			// Single-validator bootstrap: auto-produce next block without waiting for ACKs
-			if ValidatorWitnessCount <= 1 && w.imProducer(blockNumber.Uint64()+1) {
-				log.Info("Single-validator mode: auto-producing next block", "addr", w.coinbase, "next", blockNumber.Uint64()+1)
-				// Respect StellarSpeed tick interval (default 400ms) or 1s for genesis
-				tickMs := w.chainConfig.Pob.TickIntervalMs
-				if tickMs == 0 {
-					tickMs = 400
-				}
-				if blockNumber.Uint64() == 0 {
-					time.Sleep(1 * time.Second)
-				} else {
-					time.Sleep(time.Duration(tickMs) * time.Millisecond)
-				}
-				commit(false, commitInterruptNewHead, blockNumber.Uint64()+1)
-			}
 
 		case sideChainBlock := <-w.chainSideCh:
 			log.Trace("new side block", "block number", sideChainBlock.Block.Number())
@@ -1223,8 +1213,7 @@ func (w *worker) validatorCommitNewWork(interrupt *int32, noempty bool, currentE
 	if newBlockType == types.BlockTypeVisual {
 		header.Extra = params.VisualBlockExtra.Bytes()
 	}
-
-	// Inject pending node registrations into header.Extra (gas-free consensus registration)
+	// Inject pending node registrations into header.Extra (gas-free, consensus-layer)
 	if newBlockType != types.BlockTypeVisual {
 		if pobEngine, ok := w.engine.(*pob.ProofOfBehavior); ok {
 			regs := pobEngine.DrainPendingRegistrations()
@@ -1237,11 +1226,10 @@ func (w *worker) validatorCommitNewWork(interrupt *int32, noempty bool, currentE
 	header.Nonce = types.BlockNonce{}
 	header.MixDigest = common.Hash{}
 	header.Difficulty = w.engine.CalcDifficulty(w.chain, uint64(timestamp), realParent.Header())
-	header.AtomicTime = atomicClock.Now(atomicClock.ClockSourceSystem).Encode()
-	// Set BaseFee for EIP-1559 (London fork)
 	if w.chainConfig.IsLondon(header.Number) {
 		header.BaseFee = misc.CalcBaseFee(w.chainConfig, parent.Header())
 	}
+	header.AtomicTime = atomicClock.Now(atomicClock.ClockSourceSystem).Encode()
 
 	log.Info("validatorCommitNewWork", "calc Difficulty :  ", header.Difficulty)
 	header.Coinbase = common.Address{}
@@ -1254,10 +1242,9 @@ func (w *worker) validatorCommitNewWork(interrupt *int32, noempty bool, currentE
 		return nil
 	}
 
-	isSingleValidator := ValidatorWitnessCount <= 1
 	answers := w.probe.BlockChain().GetLatestBehaviorProof(parent, realParent.Number(), realParent.Hash())
 	if answers == nil {
-		if isSingleValidator {
+		if ValidatorWitnessCount == 1 {
 			log.Info("Genesis bootstrap: skipping BehaviorProof check (single validator)", "number", newBlockNumber)
 		} else {
 			log.Error("Refusing to mine without BehaviorProofs, something error, need to check")
@@ -1315,13 +1302,9 @@ func (w *worker) validatorCommitNewWork(interrupt *int32, noempty bool, currentE
 			requiredAcks = 1
 		}
 	}
-	if len(w.current.acks) < requiredAcks {
-		if isSingleValidator {
-			log.Info("Genesis bootstrap: skipping ACK check (single validator)", "number", newBlockNumber)
-		} else {
-			log.Error("not enough ack in blockchain!", "parentBlockNum", parentBlockNum, "have", len(w.current.acks), "need", requiredAcks)
-			return nil
-		}
+	if len(w.current.acks) < requiredAcks && ValidatorWitnessCount > 1 {
+		log.Error("not enough ack in blockchain!", "parentBlockNum", parentBlockNum, "have", len(w.current.acks), "need", requiredAcks)
+		return nil
 	}
 	ackCount := types.AckCount{
 		parentBlockNum,
@@ -1341,6 +1324,7 @@ func (w *worker) validatorCommitNewWork(interrupt *int32, noempty bool, currentE
 		trie.NewStackTrie(nil), newBlockType)
 	if err := w.engine.Seal(w.chain, block, nil, nil); err != nil {
 		log.Warn("Block sealing failed", "err", err)
+		return nil
 	}
 
 	select {

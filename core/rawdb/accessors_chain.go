@@ -869,6 +869,9 @@ func ReadDPos(db probedb.KeyValueReader, roundId uint64) []common.Validator {
 	var arr []common.Validator
 	key := DPosKey(roundId)
 	data, _ := db.Get(key)
+	if len(data) == 0 {
+		return arr
+	}
 	err := rlp.DecodeBytes(data, &arr)
 	if err != nil {
 		log.Warn("Failed to get dPos", "err", err)

@@ -2773,6 +2773,12 @@ func (bc *BlockChain) GetValidators(number uint64) []*common.Validator {
 	}
 	roundId := common.CalcValidatorRoundId(confirmPointNumber, epoch)
 	dPosList := rawdb.ReadDPos(bc.db, roundId)
+	// Fallback: if no validators for this round (no DPoS election happened),
+	// inherit from the previous round
+	for len(dPosList) == 0 && roundId > 0 {
+		roundId--
+		dPosList = rawdb.ReadDPos(bc.db, roundId)
+	}
 	if len(dPosList) > 0 {
 		accounts = make([]*common.Validator, len(dPosList))
 		for i, dPos := range dPosList {
@@ -3290,7 +3296,7 @@ func (bc *BlockChain) CheckAcks(block *types.Block) bool {
 			return false
 		}
 		if err != nil || !bc.CheckIsValidator(number, singer) || ack.Number.Uint64() != number-1 {
-			log.Error(" not legal singer ")
+			log.Error(" not legal singer ", "number", number, "singer", singer, "err", err, "isValidator", bc.CheckIsValidator(number, singer), "ackNum", ack.Number.Uint64(), "expected", number-1, "validatorNum", validatorNum)
 			return false
 		}
 		if ack.AckType == types.AckTypeAgree {
@@ -3342,14 +3348,26 @@ func (bc *BlockChain) CheckAcks(block *types.Block) bool {
 
 	//if isVisual || (!isVisual && parent.IsVisual()) {
 	if parent.IsVisual() {
-		return ackList[0].AckCount == uint(oppopsNum) && commitNum == 0 && bc.checkAckNumMin(oppopsNum, validatorNum)
+		result := ackList[0].AckCount == uint(oppopsNum) && commitNum == 0 && bc.checkAckNumMin(oppopsNum, validatorNum)
+		if !result {
+			log.Error("CheckAcks failed (visual)", "number", number, "ackCount", ackList[0].AckCount, "oppopsNum", oppopsNum, "commitNum", commitNum, "validatorNum", validatorNum)
+		}
+		return result
 	}
-	return ackList[0].AckCount == uint(commitNum) && oppopsNum == 0 && bc.checkAckNumMin(commitNum, validatorNum)
+	result := ackList[0].AckCount == uint(commitNum) && oppopsNum == 0 && bc.checkAckNumMin(commitNum, validatorNum)
+	if !result {
+		log.Error("CheckAcks failed (normal)", "number", number, "ackCount", ackList[0].AckCount, "commitNum", commitNum, "oppopsNum", oppopsNum, "validatorNum", validatorNum)
+	}
+	return result
 
 }
 
 // GetAckSize get a validator ack list size
 func (bc *BlockChain) checkAckNumMin(ackNum int, validatorNum int) bool {
+	// Single-validator mode: allow 0 acks (no quorum needed)
+	if validatorNum <= 1 {
+		return true
+	}
 	return ackNum > (validatorNum * 1 / 3)
 }
 
