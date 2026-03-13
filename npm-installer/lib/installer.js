@@ -278,28 +278,36 @@ fi
 `;
   fs.writeFileSync(path.join(INSTALL_DIR, 'stop.sh'), stopScript, { mode: 0o755 });
 
-  // 10. Start node
+  // 10. Kill any existing gprobe process before starting
+  try {
+    execSync('pkill -f "gprobe.*networkid 8004"', { stdio: 'ignore' });
+    await new Promise(r => setTimeout(r, 2000));
+  } catch { /* no existing process — fine */ }
+
   log('Starting Rydberg Agent node...');
   const startResult = spawnSync('bash', [START_SCRIPT], {
     cwd: INSTALL_DIR,
     stdio: 'inherit',
   });
 
-  // 11. Verify (use hex address for IPC queries)
-  log('Verifying node (waiting 10s for sync)...');
-  await new Promise(r => setTimeout(r, 10000));
+  // 11. Verify — check if IPC is available before querying
+  log('Verifying node...');
+  await new Promise(r => setTimeout(r, 3000));
 
-  const block = ipcExec('probe.blockNumber');
-  const peers = ipcExec('admin.peers.length');
+  const ipcAvailable = fs.existsSync(IPC_PATH);
+  let block = '', peers = '', balance = '0', agentStatus = 'auto (via consensus)';
 
-  // Balance query (graceful — may fail if node is still initializing)
-  let balance = ipcExec(`web3.fromWei(probe.getBalance('${hexAddr}'), 'probeer')`);
-  if (balance.includes('Error') || balance.includes('error')) balance = '0';
-
-  // Agent status (graceful — pob namespace may not be available)
-  let agentStatus = ipcExec(`typeof pob !== 'undefined' ? pob.getNodeRegistrationStatus('${hexAddr}') : 'auto'`);
-  if (agentStatus.includes('Error') || agentStatus.includes('error') || agentStatus.includes('ReferenceError')) {
-    agentStatus = 'auto (via consensus)';
+  if (ipcAvailable) {
+    block = ipcExec('probe.blockNumber');
+    peers = ipcExec('admin.peers.length');
+    balance = ipcExec(`web3.fromWei(probe.getBalance('${hexAddr}'), 'probeer')`);
+    if (balance.includes('Error') || balance.includes('Fatal')) balance = '0';
+    agentStatus = ipcExec(`typeof pob !== 'undefined' ? pob.getNodeRegistrationStatus('${hexAddr}') : 'auto'`);
+    if (agentStatus.includes('Error') || agentStatus.includes('Fatal') || agentStatus.includes('ReferenceError')) {
+      agentStatus = 'auto (via consensus)';
+    }
+  } else {
+    warn('IPC not available — node may have exited. Check: tail -f ' + LOG_FILE);
   }
 
   console.log('');
