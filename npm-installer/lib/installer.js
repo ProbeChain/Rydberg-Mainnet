@@ -278,10 +278,17 @@ fi
 `;
   fs.writeFileSync(path.join(INSTALL_DIR, 'stop.sh'), stopScript, { mode: 0o755 });
 
-  // 10. Kill any existing gprobe process before starting
+  // 10. Kill any process using port 30398 before starting
   try {
-    execSync('pkill -f "gprobe.*networkid 8004"', { stdio: 'ignore' });
-    await new Promise(r => setTimeout(r, 2000));
+    // Try multiple methods to find and kill the process
+    execSync('pkill -9 -f "gprobe.*networkid 8004" 2>/dev/null; lsof -ti :30398 | xargs kill -9 2>/dev/null; true', { stdio: 'ignore' });
+    // Wait for port to be released
+    for (let i = 0; i < 10; i++) {
+      try {
+        execSync('lsof -i :30398', { stdio: 'ignore' });
+        spawnSync('sleep', ['1']);
+      } catch { break; /* port is free */ }
+    }
   } catch { /* no existing process — fine */ }
 
   log('Starting Rydberg Agent node...');
