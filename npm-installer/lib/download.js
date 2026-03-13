@@ -7,6 +7,9 @@ const crypto = require('crypto');
 const { execSync } = require('child_process');
 const { hasCommand } = require('./platform');
 
+const isWin = process.platform === 'win32';
+const BINARY_NAME = isWin ? 'gprobe.exe' : 'gprobe';
+
 const REPO = 'ProbeChain/Rydberg-Mainnet';
 const GITHUB_API = `https://api.github.com/repos/${REPO}/releases/latest`;
 const GITHUB_CONTENTS = `https://api.github.com/repos/${REPO}/contents`;
@@ -32,7 +35,7 @@ function getProxies() {
 function httpsGet(url, opts = {}) {
   return new Promise((resolve, reject) => {
     const options = {
-      headers: { 'User-Agent': 'rydberg-agent-node/3.0.0' },
+      headers: { 'User-Agent': 'rydberg-agent-node/3.1.0' },
       timeout: 120000,
       ...opts,
     };
@@ -150,8 +153,9 @@ function verifyGpg(sha256sumsPath, sigPath, pubkeyPath) {
     return;
   }
   try {
-    execSync(`gpg --import "${pubkeyPath}" 2>/dev/null`, { stdio: 'ignore' });
-    execSync(`gpg --verify "${sigPath}" "${sha256sumsPath}" 2>/dev/null`, { stdio: 'ignore' });
+    const devNull = isWin ? 'NUL' : '/dev/null';
+    execSync(`gpg --import "${pubkeyPath}" 2>${devNull}`, { stdio: 'ignore' });
+    execSync(`gpg --verify "${sigPath}" "${sha256sumsPath}" 2>${devNull}`, { stdio: 'ignore' });
     console.log('  GPG signature verified (ProbeChain <dev@probechain.org>)');
   } catch {
     throw new Error('GPG signature verification failed');
@@ -159,25 +163,33 @@ function verifyGpg(sha256sumsPath, sigPath, pubkeyPath) {
 }
 
 /**
- * Download pre-built binary for macOS arm64.
+ * Download pre-built binary for macOS arm64 or Windows x64.
  * Performs SHA256 + optional GPG verification.
  * Uses proxy mirrors as fallback for China network.
  */
 async function downloadBinary(installDir) {
   const { tag, assets } = await fetchRelease();
 
-  const tarAsset = assets.find(a => /darwin.*arm64.*tar\.gz$/.test(a.name));
+  // Match platform-specific archive asset
+  let archiveAsset;
+  if (isWin) {
+    archiveAsset = assets.find(a => /windows.*x86_64.*\.zip$/i.test(a.name));
+    if (!archiveAsset) throw new Error('No windows-x86_64 binary found in release');
+  } else {
+    archiveAsset = assets.find(a => /darwin.*arm64.*tar\.gz$/.test(a.name));
+    if (!archiveAsset) throw new Error('No darwin-arm64 binary found in release');
+  }
+
   const sumAsset = assets.find(a => a.name === 'SHA256SUMS');
   const sigAsset = assets.find(a => a.name === 'SHA256SUMS.asc');
   const keyAsset = assets.find(a => /gpg.*public/.test(a.name));
 
-  if (!tarAsset) throw new Error('No darwin-arm64 binary found in release');
   if (!sumAsset) throw new Error('No SHA256SUMS found in release. Cannot verify binary integrity.');
 
-  const tarPath = path.join(installDir, tarAsset.name);
+  const archivePath = path.join(installDir, archiveAsset.name);
   const sumPath = path.join(installDir, 'SHA256SUMS');
 
-  await downloadFileWithProxy(tarAsset.url, tarPath, 'gprobe binary');
+  await downloadFileWithProxy(archiveAsset.url, archivePath, 'gprobe binary');
   await downloadFileWithProxy(sumAsset.url, sumPath, 'SHA256SUMS');
 
   // GPG verification (optional)
@@ -195,15 +207,23 @@ async function downloadBinary(installDir) {
   }
 
   // SHA256 verification (mandatory)
-  verifySha256(tarPath, sumPath);
+  verifySha256(archivePath, sumPath);
 
   // Extract
-  execSync(`tar xzf "${tarPath}"`, { cwd: installDir });
-  fs.chmodSync(path.join(installDir, 'gprobe'), 0o755);
+  if (isWin) {
+    // Use PowerShell Expand-Archive for .zip files
+    execSync(
+      `powershell -NoProfile -Command "Expand-Archive -Path '${archivePath}' -DestinationPath '${installDir}' -Force"`,
+      { cwd: installDir }
+    );
+  } else {
+    execSync(`tar xzf "${archivePath}"`, { cwd: installDir });
+    fs.chmodSync(path.join(installDir, 'gprobe'), 0o755);
+  }
   console.log('  Binary extracted and ready');
 
   // Cleanup
-  [tarPath, sumPath, sigPath, keyPath].forEach(f => {
+  [archivePath, sumPath, sigPath, keyPath].forEach(f => {
     if (f && fs.existsSync(f)) fs.unlinkSync(f);
   });
 
@@ -219,7 +239,7 @@ async function fetchRepoFile(filePath, tag) {
   const url = `${GITHUB_CONTENTS}/${filePath}?ref=${tag}`;
   const data = await httpsGetWithRetry(url, {
     headers: {
-      'User-Agent': 'rydberg-agent-node/3.0.0',
+      'User-Agent': 'rydberg-agent-node/3.1.0',
       'Accept': 'application/vnd.github.raw',
     },
   });

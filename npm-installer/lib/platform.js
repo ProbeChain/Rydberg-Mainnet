@@ -3,6 +3,8 @@
 const os = require('os');
 const { execSync } = require('child_process');
 
+const isWin = process.platform === 'win32';
+
 /**
  * Detect platform and architecture.
  * Returns { os, arch, prebuilt, label }
@@ -19,8 +21,9 @@ function detect() {
   const osMap = { darwin: 'Darwin', linux: 'Linux', win32: 'Windows' };
   const normOS = osMap[platform] || platform;
 
-  // Pre-built binary only available for macOS arm64
-  const prebuilt = platform === 'darwin' && arch === 'arm64';
+  // Pre-built binary available for macOS arm64 and Windows x64
+  const prebuilt = (platform === 'darwin' && arch === 'arm64')
+                || (platform === 'win32' && arch === 'x64');
 
   // Friendly label
   const label = `${normOS} ${normArch}`;
@@ -33,7 +36,8 @@ function detect() {
  */
 function hasCommand(cmd) {
   try {
-    execSync(`command -v ${cmd}`, { stdio: 'ignore' });
+    const check = isWin ? `where ${cmd}` : `command -v ${cmd}`;
+    execSync(check, { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -45,12 +49,8 @@ function hasCommand(cmd) {
  * Returns { ok: true } or { ok: false, missing: [...] }
  */
 function checkRequirements(info) {
-  if (info.platform === 'win32') {
-    return { ok: false, missing: ['WSL2 — run: wsl --install -d Ubuntu, then retry inside WSL'] };
-  }
-
   if (info.prebuilt) {
-    // Pre-built path only needs basic tools (all ship with macOS)
+    // Pre-built path only needs basic tools (all ship with macOS / Windows)
     return { ok: true };
   }
 

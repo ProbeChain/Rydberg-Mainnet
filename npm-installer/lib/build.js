@@ -5,7 +5,20 @@ const fs = require('fs');
 const path = require('path');
 const { fetchRelease } = require('./download');
 
+const isWin = process.platform === 'win32';
+const BINARY_NAME = isWin ? 'gprobe.exe' : 'gprobe';
 const REPO = 'ProbeChain/Rydberg-Mainnet';
+
+/**
+ * Cross-platform synchronous sleep.
+ */
+function sleepSync(seconds) {
+  if (isWin) {
+    spawnSync(process.env.COMSPEC || 'cmd.exe', ['/c', `timeout /t ${seconds} /nobreak >nul`]);
+  } else {
+    spawnSync('sleep', [String(seconds)]);
+  }
+}
 
 // Git clone URLs to try (direct + mirrors for China)
 function getCloneUrls() {
@@ -24,7 +37,7 @@ function getCloneUrls() {
 }
 
 /**
- * Build gprobe from source for non-macOS-arm64 platforms.
+ * Build gprobe from source for platforms without a pre-built binary.
  * Clones the repo at the release tag and runs `go build`.
  * Tries direct GitHub then proxy mirrors with HTTP/1.1 fallback.
  * Returns the release tag.
@@ -64,16 +77,17 @@ async function buildFromSource(installDir) {
     if (attempt < 4) {
       const wait = attempt * 2;
       console.log(`  Clone failed, waiting ${wait}s...`);
-      spawnSync('sleep', [String(wait)]);
+      sleepSync(wait);
     }
   }
   if (!cloned) {
     throw new Error('git clone failed after 4 attempts. Set GITHUB_PROXY=https://your-proxy to use a custom mirror.');
   }
 
+  const outputPath = path.join(installDir, BINARY_NAME);
   console.log('  Building gprobe (this may take 1-2 minutes)...');
   const buildResult = spawnSync('go', [
-    'build', '-o', path.join(installDir, 'gprobe'), './cmd/gprobe',
+    'build', '-o', outputPath, './cmd/gprobe',
   ], { cwd: srcDir, stdio: 'inherit' });
 
   if (buildResult.status !== 0) {
@@ -83,7 +97,9 @@ async function buildFromSource(installDir) {
   // Cleanup source
   fs.rmSync(srcDir, { recursive: true, force: true });
 
-  fs.chmodSync(path.join(installDir, 'gprobe'), 0o755);
+  if (!isWin) {
+    fs.chmodSync(outputPath, 0o755);
+  }
   console.log('  Build complete');
 
   return tag;
