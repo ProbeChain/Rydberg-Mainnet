@@ -1,0 +1,105 @@
+# Editors and OS
+.DS_Store
+*/**/.DS_Store
+._*
+*/**/._*
+.idea/
+.vscode/
+.project
+.settings
+*~
+*#
+.#*
+#*
+*un~
+*/**/*un~
+
+# Go build artifacts and tests
+*/**/*.test
+*_test.go
+*/**/testdata/
+/build/
+profile.tmp
+profile.cov
+
+# Runtime data and binaries
+/node_data/
+/data/
+/testdata/
+/gprobe
+password.txt
+genesis_test.json
+*.log
+/gprobe*.zip
+/probekey
+/bootnode
+.probetest
+*/**/*tx_database*
+*/**/*dapps*
+
+# Local state
+.claude/
+
+# Excluded packages (not needed for Rydberg Mainnet)
+/probe-lang/
+/ProbeSmartLight/
+/ProbeSmartLight-Android/
+/mobile/
+/swarm/
+/rydberg-deploy/
+/agent/
+/contracts/
+/tests/
+/smartlight/
+/docs/audits/
+
+# Excluded cmd tools
+/cmd/clef/
+/cmd/puppprobe/
+/cmd/faucet/
+/cmd/checkpoint-admin/
+/cmd/abidump/
+/cmd/p2psim/
+/cmd/abigen/
+/cmd/bootnode/
+/cmd/devp2p/
+/cmd/evm/
+/cmd/probekey/
+/cmd/rlpdump/
+
+# GitHub CI/templates
+/.github/
+
+# secp256k1 non-essential (autotools, java, sage, benchmarks)
+crypto/secp256k1/libsecp256k1/src/java/
+crypto/secp256k1/libsecp256k1/sage/
+crypto/secp256k1/libsecp256k1/build-aux/
+crypto/secp256k1/libsecp256k1/src/bench_*
+crypto/secp256k1/libsecp256k1/src/tests*
+crypto/secp256k1/libsecp256k1/src/testrand*
+crypto/secp256k1/libsecp256k1/Makefile.am
+crypto/secp256k1/libsecp256k1/TODO
+crypto/secp256k1/libsecp256k1/autogen.sh
+crypto/secp256k1/libsecp256k1/configure.ac
+crypto/secp256k1/libsecp256k1/libsecp256k1.pc.in
+crypto/secp256k1/libsecp256k1/README.md
+crypto/secp256k1/libsecp256k1/.gitignore
+**/Makefile.am.include
+
+# Excluded misc
+build_android.sh
+build_ios.sh
+oss-fuzz.sh
+Dockerfile*
+.dockerignore
+.gitmodules
+.gitattributes
+.golangci.yml
+.mailmap
+.travis.yml
+Makefile
+AUTHORS
+SECURITY.md
+appveyor.yml
+circle.yml
+genesis_pob.json

@@ -1,0 +1,740 @@
+// Copyright 2016 The ProbeChain Authors
+// This file is part of the ProbeChain.
+//
+// The ProbeChain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The ProbeChain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the ProbeChain. If not, see <http://www.gnu.org/licenses/>.
+
+package params
+
+import (
+	"encoding/binary"
+	"fmt"
+	"math/big"
+
+	"github.com/probechain/go-probe/common"
+	"golang.org/x/crypto/sha3"
+)
+
+// Genesis hashes to enforce below configs on.
+var (
+	MainnetGenesisHash = common.HexToHash("0x925f6779d1a0780d8070331b662ac2d859e5db3bc3ff7b6a38da5eb9d341a3bc")
+	VisualBlockExtra   = common.HexToHash("0x76aefdbcb7691c71da412a5670f2")
+)
+
+// TrustedCheckpoints associates each known checkpoint with the genesis hash of
+// the chain it belongs to.
+var TrustedCheckpoints = map[common.Hash]*TrustedCheckpoint{
+	MainnetGenesisHash: MainnetTrustedCheckpoint,
+}
+
+// CheckpointOracles associates each known checkpoint oracles with the genesis hash of
+// the chain it belongs to.
+var CheckpointOracles = map[common.Hash]*CheckpointOracleConfig{
+	MainnetGenesisHash: MainnetCheckpointOracle,
+}
+
+var (
+	// MainnetChainConfig is the chain parameters to run a node on the ProbeChain main network.
+	MainnetChainConfig = &ChainConfig{
+		ChainID:             big.NewInt(8004),
+		HomesteadBlock:      big.NewInt(0),
+		EIP150Block:         big.NewInt(0),
+		EIP155Block:         big.NewInt(0),
+		EIP158Block:         big.NewInt(0),
+		ByzantiumBlock:      big.NewInt(0),
+		ConstantinopleBlock: big.NewInt(0),
+		PetersburgBlock:     big.NewInt(0),
+		IstanbulBlock:       big.NewInt(0),
+		MuirGlacierBlock:    big.NewInt(0),
+		BerlinBlock:         big.NewInt(0),
+		LondonBlock:         big.NewInt(0),
+		ShenzhenBlock:       big.NewInt(0),
+		StellarSpeedBlock:   big.NewInt(0),
+		Pob:                 &PobConfig{Period: 0, TickIntervalMs: 400, Epoch: 30000},
+	}
+
+	FrcMainChainConfig = &ChainConfig{
+		ChainID: big.NewInt(4396),
+	}
+
+	ProbeTestChainConfig = &ChainConfig{
+		ChainID: big.NewInt(6666),
+	}
+	FrcTestChainConfig = &ChainConfig{
+		ChainID: big.NewInt(4397),
+	}
+
+	// MainnetTrustedCheckpoint contains the light client trusted checkpoint for the main network.
+	MainnetTrustedCheckpoint = &TrustedCheckpoint{
+		SectionIndex: 384,
+		SectionHead:  common.HexToHash("0xb583a0ead70324849c4caf923476de3645c0d2f707c86221ec8e40078bdd6884"),
+		CHTRoot:      common.HexToHash("0x6ecc993baad0c9f77fe9c4c13b89360112e5a0accae4d8502470b911211618b7"),
+		BloomRoot:    common.HexToHash("0x66a30d8885c19921711704921de7b4bcbd1b49191b197ee79e34dafeed9a04d9"),
+	}
+
+	// MainnetCheckpointOracle contains a set of configs for the main network oracle.
+	MainnetCheckpointOracle = &CheckpointOracleConfig{
+		Address: common.HexToAddress("0x9a9070028361F7AAbeB3f2F2Dc07F82C4a98A02a"),
+		Signers: []common.Address{
+			common.HexToAddress("0x1b2C260efc720BE89101890E4Db589b44E950527"), // Peter
+			common.HexToAddress("0x78d1aD571A1A09D60D9BBf25894b44e4C8859595"), // Martin
+			common.HexToAddress("0x286834935f4A8Cfb4FF4C77D5770C2775aE2b0E7"), // Zsolt
+			common.HexToAddress("0xb86e2B0Ab5A4B1373e40c51A7C712c70Ba2f9f8E"), // Gary
+			common.HexToAddress("0x0DF8fa387C602AE62559cC4aFa4972A7045d6707"), // Guillaume
+		},
+		Threshold: 2,
+	}
+
+	// AllPobProtocolChanges contains every protocol change (EIPs) introduced
+	// and accepted by the ProbeChain core developers into the PoB consensus.
+	AllPobProtocolChanges = &ChainConfig{
+		ChainID:             big.NewInt(1337),
+		HomesteadBlock:      big.NewInt(0),
+		EIP150Block:         big.NewInt(0),
+		EIP155Block:         big.NewInt(0),
+		EIP158Block:         big.NewInt(0),
+		ByzantiumBlock:      big.NewInt(0),
+		ConstantinopleBlock: big.NewInt(0),
+		PetersburgBlock:     big.NewInt(0),
+		IstanbulBlock:       big.NewInt(0),
+		MuirGlacierBlock:    big.NewInt(0),
+		BerlinBlock:         big.NewInt(0),
+		LondonBlock:         big.NewInt(0),
+		ShenzhenBlock:       big.NewInt(0),
+		Pob:                 &PobConfig{Period: 0, TickIntervalMs: 400, Epoch: 30000},
+		StellarSpeedBlock:   big.NewInt(0),
+	}
+
+	TestChainConfig = &ChainConfig{
+		ChainID:             big.NewInt(1),
+		HomesteadBlock:      big.NewInt(0),
+		EIP150Block:         big.NewInt(0),
+		EIP155Block:         big.NewInt(0),
+		EIP158Block:         big.NewInt(0),
+		ByzantiumBlock:      big.NewInt(0),
+		ConstantinopleBlock: big.NewInt(0),
+		PetersburgBlock:     big.NewInt(0),
+		IstanbulBlock:       big.NewInt(0),
+		MuirGlacierBlock:    big.NewInt(0),
+		BerlinBlock:         big.NewInt(0),
+		LondonBlock:         big.NewInt(0),
+		ShenzhenBlock:       big.NewInt(0),
+		Pob:                 &PobConfig{Period: 0, TickIntervalMs: 400, Epoch: 30000},
+		StellarSpeedBlock:   big.NewInt(0),
+	}
+	TestRules = TestChainConfig.Rules(new(big.Int))
+)
+
+// TrustedCheckpoint represents a set of post-processed trie roots (CHT and
+// BloomTrie) associated with the appropriate section index and head hash. It is
+// used to start light syncing from this checkpoint and avoid downloading the
+// entire header chain while still being able to securely access old headers/logs.
+type TrustedCheckpoint struct {
+	SectionIndex uint64      `json:"sectionIndex"`
+	SectionHead  common.Hash `json:"sectionHead"`
+	CHTRoot      common.Hash `json:"chtRoot"`
+	BloomRoot    common.Hash `json:"bloomRoot"`
+}
+
+// HashEqual returns an indicator comparing the itself hash with given one.
+func (c *TrustedCheckpoint) HashEqual(hash common.Hash) bool {
+	if c.Empty() {
+		return hash == common.Hash{}
+	}
+	return c.Hash() == hash
+}
+
+// Hash returns the hash of checkpoint's four key fields(index, sectionHead, chtRoot and bloomTrieRoot).
+func (c *TrustedCheckpoint) Hash() common.Hash {
+	var sectionIndex [8]byte
+	binary.BigEndian.PutUint64(sectionIndex[:], c.SectionIndex)
+
+	w := sha3.NewLegacyKeccak256()
+	w.Write(sectionIndex[:])
+	w.Write(c.SectionHead[:])
+	w.Write(c.CHTRoot[:])
+	w.Write(c.BloomRoot[:])
+
+	var h common.Hash
+	w.Sum(h[:0])
+	return h
+}
+
+// Empty returns an indicator whprobeer the checkpoint is regarded as empty.
+func (c *TrustedCheckpoint) Empty() bool {
+	return c.SectionHead == (common.Hash{}) || c.CHTRoot == (common.Hash{}) || c.BloomRoot == (common.Hash{})
+}
+
+// CheckpointOracleConfig represents a set of checkpoint contract(which acts as an oracle)
+// config which used for light client checkpoint syncing.
+type CheckpointOracleConfig struct {
+	Address   common.Address   `json:"address"`
+	Signers   []common.Address `json:"signers"`
+	Threshold uint64           `json:"threshold"`
+}
+
+// ChainConfig is the core config which determines the blockchain settings.
+//
+// ChainConfig is stored in the database on a per block basis. This means
+// that any network, identified by its genesis block, can have its own
+// set of configuration options.
+type ChainConfig struct {
+	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
+
+	HomesteadBlock *big.Int `json:"homesteadBlock,omitempty"` // Homestead switch block (nil = no fork, 0 = already homestead)
+
+	DAOForkBlock   *big.Int `json:"daoForkBlock,omitempty"`   // TheDAO hard-fork switch block (nil = no fork)
+	DAOForkSupport bool     `json:"daoForkSupport,omitempty"` // Whprobeer the nodes supports or opposes the DAO hard-fork
+
+	// EIP150 implements the Gas price changes (https://github.com/probeum/EIPs/issues/150)
+	EIP150Block *big.Int    `json:"eip150Block,omitempty"` // EIP150 HF block (nil = no fork)
+	EIP150Hash  common.Hash `json:"eip150Hash,omitempty"`  // EIP150 HF hash (needed for header only clients as only gas pricing changed)
+
+	EIP155Block *big.Int `json:"eip155Block,omitempty"` // EIP155 HF block
+	EIP158Block *big.Int `json:"eip158Block,omitempty"` // EIP158 HF block
+
+	ByzantiumBlock      *big.Int `json:"byzantiumBlock,omitempty"`      // Byzantium switch block (nil = no fork, 0 = already on byzantium)
+	ConstantinopleBlock *big.Int `json:"constantinopleBlock,omitempty"` // Constantinople switch block (nil = no fork, 0 = already activated)
+	PetersburgBlock     *big.Int `json:"petersburgBlock,omitempty"`     // Petersburg switch block (nil = same as Constantinople)
+	IstanbulBlock       *big.Int `json:"istanbulBlock,omitempty"`       // Istanbul switch block (nil = no fork, 0 = already on istanbul)
+	MuirGlacierBlock    *big.Int `json:"muirGlacierBlock,omitempty"`    // Eip-2384 (bomb delay) switch block (nil = no fork, 0 = already activated)
+	BerlinBlock         *big.Int `json:"berlinBlock,omitempty"`         // Berlin switch block (nil = no fork, 0 = already on berlin)
+	LondonBlock         *big.Int `json:"londonBlock,omitempty"`         // London switch block (nil = no fork, 0 = already on london)
+	ShenzhenBlock       *big.Int `json:"shenzhenBlock,omitempty"`       // Shenzhen switch block (nil = no fork, 0 = already on shenzhen)
+
+	DilithiumBlock *big.Int `json:"dilithiumBlock,omitempty"` // Dilithium switch block (nil = no fork, 0 = already on dilithium)
+
+	StellarSpeedBlock *big.Int `json:"stellarSpeedBlock,omitempty"` // StellarSpeed switch block (nil = no fork, 0 = already active)
+
+	SuperlightBlock *big.Int `json:"superlightBlock,omitempty"` // Superlight DEX switch block (nil = no fork, 0 = already active)
+
+	AgentConsensusBlock *big.Int `json:"agentConsensusBlock,omitempty"` // Agent consensus (PoB) switch block (nil = no fork, 0 = already active)
+
+	PoBV2Block *big.Int `json:"pobV2Block,omitempty"` // PoB V2 reward model switch block (nil = no fork, 0 = already active)
+
+	EWASMBlock    *big.Int `json:"ewasmBlock,omitempty"`    // EWASM switch block (nil = no fork, 0 = already activated)
+	CatalystBlock *big.Int `json:"catalystBlock,omitempty"` // Catalyst switch block (nil = no fork, 0 = already on catalyst)
+
+	// Consensus engine
+	Pob *PobConfig `json:"pob,omitempty"`
+
+	// StellarSpeed sub-second block production config
+	StellarSpeed *StellarSpeedConfig `json:"stellarSpeed,omitempty"`
+
+	// Superlight DEX config
+	Superlight *SuperlightConfig `json:"superlight,omitempty"`
+
+	// Agent consensus config (legacy, pre-V2)
+	Agent *AgentConfig `json:"agent,omitempty"`
+
+	// PoB V2 reward model config
+	PoBV2 *PoBV2Config `json:"pobV2,omitempty"`
+}
+
+
+// PobConfig is the consensus engine configs for Proof-of-Behavior based sealing.
+type PobConfig struct {
+	Period            uint64             `json:"period"`            // Block period in seconds (0 = StellarSpeed 400ms)
+	TickIntervalMs    uint64             `json:"tickIntervalMs"`    // StellarSpeed tick interval in ms (default 400)
+	Epoch             uint64             `json:"epoch"`             // Epoch length for score checkpoints
+	InitialScore      uint64             `json:"initialScore"`      // Starting score for new validators (default 5000)
+	SlashFraction     uint64             `json:"slashFraction"`     // Slash severity in basis points
+	DemotionThreshold uint64             `json:"demotionThreshold"` // Score below which validator is demoted
+	ValidatorList     []common.Validator `json:"list"`              // Initial validators
+}
+
+// String implements the stringer interface, returning the consensus engine details.
+func (c *PobConfig) String() string {
+	return "pob"
+}
+
+// StellarSpeedConfig holds configuration for sub-second block production.
+type StellarSpeedConfig struct {
+	Enabled          bool   `json:"enabled"`          // Whether StellarSpeed mode is active
+	TickIntervalMs   uint64 `json:"tickIntervalMs"`   // Tick interval in milliseconds (default 400)
+	PipelineEnabled  bool   `json:"pipelineEnabled"`  // Begin next block prep immediately after seal
+	ReducedAckQuorum bool   `json:"reducedAckQuorum"` // Use reduced PoB ACK quorum for fast blocks
+	MaxTxPerTick     uint64 `json:"maxTxPerTick"`     // Max transactions per tick (0 = unlimited)
+}
+
+// String implements the stringer interface, returning the config details.
+func (c *StellarSpeedConfig) String() string {
+	return fmt.Sprintf("stellarspeed(tick=%dms, pipeline=%v)", c.TickIntervalMs, c.PipelineEnabled)
+}
+
+// SuperlightConfig holds configuration for the Superlight hybrid DEX.
+type SuperlightConfig struct {
+	Enabled       bool    `json:"enabled"`       // Whether Superlight DEX is active
+	MakerFeeBps   uint64  `json:"makerFeeBps"`   // Maker fee in basis points (default 10 = 0.1%)
+	TakerFeeBps   uint64  `json:"takerFeeBps"`   // Taker fee in basis points (default 30 = 0.3%)
+	MaxOrdersPerAccount uint64 `json:"maxOrdersPerAccount"` // Max open orders per account (default 100)
+}
+
+// AgentConfig holds configuration for the PoB agent consensus tier (legacy, pre-V2).
+type AgentConfig struct {
+	MinStake          uint64 `json:"minStake"`
+	MaxAgentsPerEpoch uint64 `json:"maxAgentsPerEpoch"`
+	RewardPool        uint64 `json:"rewardPool"`
+	TaskTimeout       uint64 `json:"taskTimeout"`
+	HeartbeatBlocks   uint64 `json:"heartbeatBlocks"`
+}
+
+// DefaultAgentConfig returns the default PoB agent configuration.
+func DefaultAgentConfig() *AgentConfig {
+	return &AgentConfig{
+		MinStake:          1e17,
+		MaxAgentsPerEpoch: 100000,
+		RewardPool:        1e17,
+		TaskTimeout:       5,
+		HeartbeatBlocks:   250,
+	}
+}
+
+// PoBV2Config holds the PoB V2.1 reward model configuration.
+// OZ Gold Standard: emission decays as Probe Banks accumulates physical gold.
+//
+// Design:
+//   - Block reward is coupled to qualified transaction VOLUME (not count)
+//   - Emission decays toward zero as Probe Banks gold reserves grow
+//   - When reserves reach 36,000 metric tons (1,157,425,200 OZ), emission stops
+//   - GDP is denominated in OZ (1 OZ = 1 troy ounce of gold)
+//   - PROBE market price is determined freely by the market
+//
+// Philosophy:
+//   Central banks' 32,000 tons of gold support $150T carbon-based GDP.
+//   Probe Banks' 36,000 tons of gold will support the silicon-based Agent GDP.
+//   Bitcoin solved money printing. PROBE solves Agent GDP measurement.
+type PoBV2Config struct {
+	// Volume-coupled reward rate in basis points.
+	// Each unit of qualified tx volume generates rewardRateBps/10000 PROBE.
+	// Default 13 bps = 0.13%: 1000 PROBE volume → 0.13 PROBE reward.
+	RewardRateBps uint64 `json:"rewardRateBps"`
+
+	// Minimum qualified transaction value in wei.
+	// Transactions below this threshold are excluded from reward and GDP.
+	// Default 1e16 = 0.01 PROBE. Prevents dust-spam attacks.
+	MinTxValueWei uint64 `json:"minTxValueWei"`
+
+	// Empty block heartbeat reward in wei.
+	// Tiny incentive for block production even without transactions.
+	// Default 1e13 = 0.00001 PROBE.
+	HeartbeatRewardWei uint64 `json:"heartbeatRewardWei"`
+
+	// Maximum block reward in wei (cap per block).
+	// Default 1e19 = 10 PROBE.
+	MaxBlockRewardWei uint64 `json:"maxBlockRewardWei"`
+
+	// Emission decay exponent (1 = linear, 2 = quadratic).
+	// Controls how quickly emission decreases as gold reserves grow.
+	// Linear (1): smooth, constant decay rate.
+	// Quadratic (2): front-loaded emission, faster tail-off.
+	DecayExponent uint64 `json:"decayExponent"`
+
+	// Probe Banks gold reserve target in whole troy ounces (OZ).
+	// When Probe Banks' physical gold reserves reach this amount, emission stops.
+	// 36,000 metric tons = 1,157,425,200 troy ounces.
+	// OZ token's totalSupply() = Probe Banks' actual gold (100% backed, no fractional reserve).
+	GoldReserveTargetOZ string `json:"goldReserveTargetOZ"`
+
+	// Reward split (basis points, must sum to 10000)
+	ProducerShareBps uint64 `json:"producerShareBps"` // Block producer share (default 3000 = 30%)
+	AgentShareBps    uint64 `json:"agentShareBps"`    // Agent node pool share (default 4000 = 40%)
+	PhysicalShareBps uint64 `json:"physicalShareBps"` // Physical node pool share (default 3000 = 30%)
+
+	// Difficulty scaling
+	InitialDifficulty    uint64 `json:"initialDifficulty"`    // Starting difficulty (default 1)
+	NodesPerDifficultyUp uint64 `json:"nodesPerDifficultyUp"` // Nodes needed to increase difficulty by 1 (default 1000)
+}
+
+// DefaultPoBV2Config returns the default PoB V2.1 configuration (OZ Gold Standard).
+func DefaultPoBV2Config() *PoBV2Config {
+	return &PoBV2Config{
+		RewardRateBps:        5,            // 0.05% of qualified volume (4.2× anti-Sybil margin)
+		MinTxValueWei:        1e16,         // 0.01 PROBE minimum
+		HeartbeatRewardWei:   1e10,         // 0.00000001 PROBE for empty blocks
+		MaxBlockRewardWei:    1e19,         // 10 PROBE cap per block
+		DecayExponent:        1,            // Linear decay
+		GoldReserveTargetOZ:  "1157425200", // 36,000 metric tons = 1,157,425,200 troy oz
+		ProducerShareBps:     3000,         // 30%
+		AgentShareBps:        4000,         // 40%
+		PhysicalShareBps:     3000,         // 30%
+		InitialDifficulty:    1,
+		NodesPerDifficultyUp: 1000,
+	}
+}
+
+// String implements the fmt.Stringer interface.
+func (c *ChainConfig) String() string {
+	var engine interface{}
+	if c.Pob != nil {
+		engine = c.Pob
+	} else {
+		engine = "unknown"
+	}
+	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v Constantinople: %v Petersburg: %v Istanbul: %v, Muir Glacier: %v, Berlin: %v, London: %v, Shenzhen: %v, Dilithium: %v, Engine: %v}",
+		c.ChainID,
+		c.HomesteadBlock,
+		c.DAOForkBlock,
+		c.DAOForkSupport,
+		c.EIP150Block,
+		c.EIP155Block,
+		c.EIP158Block,
+		c.ByzantiumBlock,
+		c.ConstantinopleBlock,
+		c.PetersburgBlock,
+		c.IstanbulBlock,
+		c.MuirGlacierBlock,
+		c.BerlinBlock,
+		c.LondonBlock,
+		c.ShenzhenBlock,
+		c.DilithiumBlock,
+		engine,
+	)
+}
+
+// IsHomestead returns whprobeer num is either equal to the homestead block or greater.
+func (c *ChainConfig) IsHomestead(num *big.Int) bool {
+	return isForked(c.HomesteadBlock, num)
+}
+
+// IsDAOFork returns whprobeer num is either equal to the DAO fork block or greater.
+func (c *ChainConfig) IsDAOFork(num *big.Int) bool {
+	return isForked(c.DAOForkBlock, num)
+}
+
+// IsEIP150 returns whprobeer num is either equal to the EIP150 fork block or greater.
+func (c *ChainConfig) IsEIP150(num *big.Int) bool {
+	return isForked(c.EIP150Block, num)
+}
+
+// IsEIP155 returns whprobeer num is either equal to the EIP155 fork block or greater.
+func (c *ChainConfig) IsEIP155(num *big.Int) bool {
+	return isForked(c.EIP155Block, num)
+}
+
+// IsEIP158 returns whprobeer num is either equal to the EIP158 fork block or greater.
+func (c *ChainConfig) IsEIP158(num *big.Int) bool {
+	return isForked(c.EIP158Block, num)
+}
+
+// IsByzantium returns whprobeer num is either equal to the Byzantium fork block or greater.
+func (c *ChainConfig) IsByzantium(num *big.Int) bool {
+	return isForked(c.ByzantiumBlock, num)
+}
+
+// IsConstantinople returns whprobeer num is either equal to the Constantinople fork block or greater.
+func (c *ChainConfig) IsConstantinople(num *big.Int) bool {
+	return isForked(c.ConstantinopleBlock, num)
+}
+
+// IsMuirGlacier returns whprobeer num is either equal to the Muir Glacier (EIP-2384) fork block or greater.
+func (c *ChainConfig) IsMuirGlacier(num *big.Int) bool {
+	return isForked(c.MuirGlacierBlock, num)
+}
+
+// IsPetersburg returns whprobeer num is either
+// - equal to or greater than the PetersburgBlock fork block,
+// - OR is nil, and Constantinople is active
+func (c *ChainConfig) IsPetersburg(num *big.Int) bool {
+	return isForked(c.PetersburgBlock, num) || c.PetersburgBlock == nil && isForked(c.ConstantinopleBlock, num)
+}
+
+// IsIstanbul returns whprobeer num is either equal to the Istanbul fork block or greater.
+func (c *ChainConfig) IsIstanbul(num *big.Int) bool {
+	return isForked(c.IstanbulBlock, num)
+}
+
+// IsBerlin returns whprobeer num is either equal to the Berlin fork block or greater.
+func (c *ChainConfig) IsBerlin(num *big.Int) bool {
+	return isForked(c.BerlinBlock, num)
+}
+
+// IsLondon returns whprobeer num is either equal to the London fork block or greater.
+func (c *ChainConfig) IsLondon(num *big.Int) bool {
+	return isForked(c.LondonBlock, num)
+}
+
+// IsCatalyst returns whprobeer num is either equal to the Merge fork block or greater.
+func (c *ChainConfig) IsCatalyst(num *big.Int) bool {
+	return isForked(c.CatalystBlock, num)
+}
+
+// IsEWASM returns whprobeer num represents a block number after the EWASM fork
+func (c *ChainConfig) IsEWASM(num *big.Int) bool {
+	return isForked(c.EWASMBlock, num)
+}
+
+// IsShenzhen returns whprobeer num is either equal to the Merge fork block or greater.
+func (c *ChainConfig) IsShenzhen(num *big.Int) bool {
+	//return  num.Uint64()>280800
+	return isForked(c.ShenzhenBlock, num)
+}
+
+// IsDilithium returns whether num is either equal to the Dilithium fork block or greater.
+func (c *ChainConfig) IsDilithium(num *big.Int) bool {
+	return isForked(c.DilithiumBlock, num)
+}
+
+// IsStellarSpeed returns whether num is either equal to the StellarSpeed fork block or greater.
+func (c *ChainConfig) IsStellarSpeed(num *big.Int) bool {
+	return isForked(c.StellarSpeedBlock, num)
+}
+
+// IsSuperlight returns whether num is either equal to the Superlight fork block or greater.
+func (c *ChainConfig) IsSuperlight(num *big.Int) bool {
+	return isForked(c.SuperlightBlock, num)
+}
+
+// IsAgentConsensus returns whether num is either equal to the Agent consensus fork block or greater.
+func (c *ChainConfig) IsAgentConsensus(num *big.Int) bool {
+	return isForked(c.AgentConsensusBlock, num)
+}
+
+// IsPoBV2 returns whether num is either equal to the PoB V2 fork block or greater.
+func (c *ChainConfig) IsPoBV2(num *big.Int) bool {
+	return isForked(c.PoBV2Block, num)
+}
+
+// CheckCompatible checks whprobeer scheduled fork transitions have been imported
+// with a mismatching chain configuration.
+func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height uint64) *ConfigCompatError {
+	bhead := new(big.Int).SetUint64(height)
+
+	// Iterate checkCompatible to find the lowest conflict.
+	var lasterr *ConfigCompatError
+	for {
+		err := c.checkCompatible(newcfg, bhead)
+		if err == nil || (lasterr != nil && err.RewindTo == lasterr.RewindTo) {
+			break
+		}
+		lasterr = err
+		bhead.SetUint64(err.RewindTo)
+	}
+	return lasterr
+}
+
+// CheckConfigForkOrder checks that we don't "skip" any forks, gprobe isn't pluggable enough
+// to guarantee that forks can be implemented in a different order than on official networks
+func (c *ChainConfig) CheckConfigForkOrder() error {
+	type fork struct {
+		name     string
+		block    *big.Int
+		optional bool // if true, the fork may be nil and next fork is still allowed
+	}
+	var lastFork fork
+	for _, cur := range []fork{
+		{name: "homesteadBlock", block: c.HomesteadBlock},
+		{name: "daoForkBlock", block: c.DAOForkBlock, optional: true},
+		{name: "eip150Block", block: c.EIP150Block},
+		{name: "eip155Block", block: c.EIP155Block},
+		{name: "eip158Block", block: c.EIP158Block},
+		{name: "byzantiumBlock", block: c.ByzantiumBlock},
+		{name: "constantinopleBlock", block: c.ConstantinopleBlock},
+		{name: "petersburgBlock", block: c.PetersburgBlock},
+		{name: "istanbulBlock", block: c.IstanbulBlock},
+		{name: "muirGlacierBlock", block: c.MuirGlacierBlock, optional: true},
+		{name: "berlinBlock", block: c.BerlinBlock, optional: true},
+		{name: "londonBlock", block: c.LondonBlock, optional: true},
+		{name: "shenzhenBlock", block: c.ShenzhenBlock, optional: true},
+		{name: "dilithiumBlock", block: c.DilithiumBlock, optional: true},
+		{name: "stellarSpeedBlock", block: c.StellarSpeedBlock, optional: true},
+		{name: "superlightBlock", block: c.SuperlightBlock, optional: true},
+		{name: "agentConsensusBlock", block: c.AgentConsensusBlock, optional: true},
+		{name: "pobV2Block", block: c.PoBV2Block, optional: true},
+	} {
+		if lastFork.name != "" {
+			// Next one must be higher number
+			if lastFork.block == nil && cur.block != nil {
+				return fmt.Errorf("unsupported fork ordering: %v not enabled, but %v enabled at %v",
+					lastFork.name, cur.name, cur.block)
+			}
+			if lastFork.block != nil && cur.block != nil {
+				if lastFork.block.Cmp(cur.block) > 0 {
+					return fmt.Errorf("unsupported fork ordering: %v enabled at %v, but %v enabled at %v",
+						lastFork.name, lastFork.block, cur.name, cur.block)
+				}
+			}
+		}
+		// If it was optional and not set, then ignore it
+		if !cur.optional || cur.block != nil {
+			lastFork = cur
+		}
+	}
+	return nil
+}
+
+func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int) *ConfigCompatError {
+	if isForkIncompatible(c.HomesteadBlock, newcfg.HomesteadBlock, head) {
+		return newCompatError("Homestead fork block", c.HomesteadBlock, newcfg.HomesteadBlock)
+	}
+	if isForkIncompatible(c.DAOForkBlock, newcfg.DAOForkBlock, head) {
+		return newCompatError("DAO fork block", c.DAOForkBlock, newcfg.DAOForkBlock)
+	}
+	if c.IsDAOFork(head) && c.DAOForkSupport != newcfg.DAOForkSupport {
+		return newCompatError("DAO fork support flag", c.DAOForkBlock, newcfg.DAOForkBlock)
+	}
+	if isForkIncompatible(c.EIP150Block, newcfg.EIP150Block, head) {
+		return newCompatError("EIP150 fork block", c.EIP150Block, newcfg.EIP150Block)
+	}
+	if isForkIncompatible(c.EIP155Block, newcfg.EIP155Block, head) {
+		return newCompatError("EIP155 fork block", c.EIP155Block, newcfg.EIP155Block)
+	}
+	if isForkIncompatible(c.EIP158Block, newcfg.EIP158Block, head) {
+		return newCompatError("EIP158 fork block", c.EIP158Block, newcfg.EIP158Block)
+	}
+	if c.IsEIP158(head) && !configNumEqual(c.ChainID, newcfg.ChainID) {
+		return newCompatError("EIP158 chain ID", c.EIP158Block, newcfg.EIP158Block)
+	}
+	if isForkIncompatible(c.ByzantiumBlock, newcfg.ByzantiumBlock, head) {
+		return newCompatError("Byzantium fork block", c.ByzantiumBlock, newcfg.ByzantiumBlock)
+	}
+	if isForkIncompatible(c.ConstantinopleBlock, newcfg.ConstantinopleBlock, head) {
+		return newCompatError("Constantinople fork block", c.ConstantinopleBlock, newcfg.ConstantinopleBlock)
+	}
+	if isForkIncompatible(c.PetersburgBlock, newcfg.PetersburgBlock, head) {
+		// the only case where we allow Petersburg to be set in the past is if it is equal to Constantinople
+		// mainly to satisfy fork ordering requirements which state that Petersburg fork be set if Constantinople fork is set
+		if isForkIncompatible(c.ConstantinopleBlock, newcfg.PetersburgBlock, head) {
+			return newCompatError("Petersburg fork block", c.PetersburgBlock, newcfg.PetersburgBlock)
+		}
+	}
+	if isForkIncompatible(c.IstanbulBlock, newcfg.IstanbulBlock, head) {
+		return newCompatError("Istanbul fork block", c.IstanbulBlock, newcfg.IstanbulBlock)
+	}
+	if isForkIncompatible(c.MuirGlacierBlock, newcfg.MuirGlacierBlock, head) {
+		return newCompatError("Muir Glacier fork block", c.MuirGlacierBlock, newcfg.MuirGlacierBlock)
+	}
+	if isForkIncompatible(c.BerlinBlock, newcfg.BerlinBlock, head) {
+		return newCompatError("Berlin fork block", c.BerlinBlock, newcfg.BerlinBlock)
+	}
+	if isForkIncompatible(c.LondonBlock, newcfg.LondonBlock, head) {
+		return newCompatError("London fork block", c.LondonBlock, newcfg.LondonBlock)
+	}
+	if isForkIncompatible(c.EWASMBlock, newcfg.EWASMBlock, head) {
+		return newCompatError("ewasm fork block", c.EWASMBlock, newcfg.EWASMBlock)
+	}
+	if isForkIncompatible(c.ShenzhenBlock, newcfg.ShenzhenBlock, head) {
+		return newCompatError("Shenzhen fork block", c.ShenzhenBlock, newcfg.ShenzhenBlock)
+	}
+	if isForkIncompatible(c.DilithiumBlock, newcfg.DilithiumBlock, head) {
+		return newCompatError("Dilithium fork block", c.DilithiumBlock, newcfg.DilithiumBlock)
+	}
+	if isForkIncompatible(c.AgentConsensusBlock, newcfg.AgentConsensusBlock, head) {
+		return newCompatError("AgentConsensus fork block", c.AgentConsensusBlock, newcfg.AgentConsensusBlock)
+	}
+	return nil
+}
+
+// isForkIncompatible returns true if a fork scheduled at s1 cannot be rescheduled to
+// block s2 because head is already past the fork.
+func isForkIncompatible(s1, s2, head *big.Int) bool {
+	return (isForked(s1, head) || isForked(s2, head)) && !configNumEqual(s1, s2)
+}
+
+// isForked returns whprobeer a fork scheduled at block s is active at the given head block.
+func isForked(s, head *big.Int) bool {
+	if s == nil || head == nil {
+		return false
+	}
+	return s.Cmp(head) <= 0
+}
+
+func configNumEqual(x, y *big.Int) bool {
+	if x == nil {
+		return y == nil
+	}
+	if y == nil {
+		return x == nil
+	}
+	return x.Cmp(y) == 0
+}
+
+// ConfigCompatError is raised if the locally-stored blockchain is initialised with a
+// ChainConfig that would alter the past.
+type ConfigCompatError struct {
+	What string
+	// block numbers of the stored and new configurations
+	StoredConfig, NewConfig *big.Int
+	// the block number to which the local chain must be rewound to correct the error
+	RewindTo uint64
+}
+
+func newCompatError(what string, storedblock, newblock *big.Int) *ConfigCompatError {
+	var rew *big.Int
+	switch {
+	case storedblock == nil:
+		rew = newblock
+	case newblock == nil || storedblock.Cmp(newblock) < 0:
+		rew = storedblock
+	default:
+		rew = newblock
+	}
+	err := &ConfigCompatError{what, storedblock, newblock, 0}
+	if rew != nil && rew.Sign() > 0 {
+		err.RewindTo = rew.Uint64() - 1
+	}
+	return err
+}
+
+func (err *ConfigCompatError) Error() string {
+	return fmt.Sprintf("mismatching %s in database (have %d, want %d, rewindto %d)", err.What, err.StoredConfig, err.NewConfig, err.RewindTo)
+}
+
+// Rules wraps ChainConfig and is merely syntactic sugar or can be used for functions
+// that do not have or require information about the block.
+//
+// Rules is a one time interface meaning that it shouldn't be used in between transition
+// phases.
+type Rules struct {
+	ChainID                                                 *big.Int
+	IsHomestead, IsEIP150, IsEIP155, IsEIP158               bool
+	IsByzantium, IsConstantinople, IsPetersburg, IsIstanbul bool
+	IsBerlin, IsLondon, IsCatalyst, IsShenzhen              bool
+	IsDilithium                                             bool
+	IsAgentConsensus                                        bool
+	IsPoBV2                                                 bool
+}
+
+// Rules ensures c's ChainID is not nil.
+func (c *ChainConfig) Rules(num *big.Int) Rules {
+	chainID := c.ChainID
+	if chainID == nil {
+		chainID = new(big.Int)
+	}
+	return Rules{
+		ChainID:          new(big.Int).Set(chainID),
+		IsHomestead:      c.IsHomestead(num),
+		IsEIP150:         c.IsEIP150(num),
+		IsEIP155:         c.IsEIP155(num),
+		IsEIP158:         c.IsEIP158(num),
+		IsByzantium:      c.IsByzantium(num),
+		IsConstantinople: c.IsConstantinople(num),
+		IsPetersburg:     c.IsPetersburg(num),
+		IsIstanbul:       c.IsIstanbul(num),
+		IsBerlin:         c.IsBerlin(num),
+		IsLondon:         c.IsLondon(num),
+		IsCatalyst:       c.IsCatalyst(num),
+		IsShenzhen:       c.IsShenzhen(num),
+		IsDilithium:      c.IsDilithium(num),
+		IsAgentConsensus: c.IsAgentConsensus(num),
+		IsPoBV2:          c.IsPoBV2(num),
+	}
+}
+
+// PobConfigEpoch returns the PoB config epoch.
+func (c *ChainConfig) PobConfigEpoch() uint64 {
+	if c.Pob != nil {
+		return c.Pob.Epoch
+	}
+	return 30000 // default
+}
