@@ -161,6 +161,7 @@ gprobe.exe ^
   --unlock $ADDRESS ^
   --password password.txt ^
   --allow-insecure-unlock ^
+  --syncmode full ^
   --bootnodes "$ENODE" ^
   --verbosity 3
 "@

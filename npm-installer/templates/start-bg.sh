@@ -16,6 +16,7 @@ cd ~/rydberg-agent
   --password ./password.txt \
   --allow-insecure-unlock \
   --ipcpath ~/rydberg-agent/gprobe.ipc \
+  --syncmode full \
   --bootnodes "ENODE_PLACEHOLDER" \
   --verbosity 3 > node.log 2>&1 &
 NODE_PID=$!

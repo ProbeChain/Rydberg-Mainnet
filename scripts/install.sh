@@ -209,6 +209,7 @@ echo ""
   --unlock $ADDRESS \\
   --password ./password.txt \\
   --allow-insecure-unlock \\
+  --syncmode full \\
   --bootnodes "$ENODE" \\
   --verbosity 3
 STARTEOF
@@ -232,6 +233,7 @@ cd "$INSTALL_DIR"
   --password ./password.txt \\
   --allow-insecure-unlock \\
   --ipcpath /tmp/gprobe-rydberg.ipc \\
+  --syncmode full \\
   --bootnodes "$ENODE" \\
   --verbosity 3 \\
   > node.log 2>&1 &
