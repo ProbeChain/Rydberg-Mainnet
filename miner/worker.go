@@ -1244,10 +1244,11 @@ func (w *worker) validatorCommitNewWork(interrupt *int32, noempty bool, currentE
 
 	answers := w.probe.BlockChain().GetLatestBehaviorProof(parent, realParent.Number(), realParent.Hash())
 	if answers == nil {
-		if ValidatorWitnessCount == 1 {
-			log.Info("Genesis bootstrap: skipping BehaviorProof check (single validator)", "number", newBlockNumber)
+		if ValidatorWitnessCount <= 1 || newBlockNumber.Uint64() <= 2 {
+			log.Info("Genesis bootstrap: skipping BehaviorProof check", "number", newBlockNumber, "validatorCount", ValidatorWitnessCount)
 		} else {
-			log.Error("Refusing to mine without BehaviorProofs, something error, need to check")
+			log.Error("Refusing to mine without BehaviorProofs, something error, need to check",
+				"validatorCount", ValidatorWitnessCount, "number", newBlockNumber)
 			return nil
 		}
 	} else {

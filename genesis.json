@@ -38,8 +38,8 @@
             "demotionThreshold": 1000,
             "list": [
                 {
-                    "enode": "enode://59a7202485ca9e6067cb2d9f1071ac3c7258c9450648ee6bcfab07ba14533794a9282a7b287fdec904e15e3bb45e51c439eecd4d7904c6ebffb5d676f9e27107@127.0.0.1:30303",
-                    "owner": "0x63b3567834350660acaf54a7773d4bcce731b982"
+                    "enode": "enode://c56b6a7949fa9f6cf6e809863223fa9a444440a8f7fd4776ff5437f4c0db8d5775f7c0d3bfa0e6270242aa3811b776c9ef19d12c47a0f6e76f25b430a99071e9@bore.pub:9208",
+                    "owner": "0x1d82bad98d5dc507e5adb29375edabd5830dee6a"
                 }
             ]
         }
@@ -52,7 +52,7 @@
     "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "coinbase": "0x0000000000000000000000000000000000000000",
     "alloc": {
-        "0x63b3567834350660acaf54a7773d4bcce731b982": {
+        "0x1d82bad98d5dc507e5adb29375edabd5830dee6a": {
             "balance": "1000000000000000000000000000"
         }
     },
