@@ -18,10 +18,11 @@ const GITHUB_CONTENTS = `https://api.github.com/repos/${REPO}/contents`;
 function httpsGet(url, opts = {}) {
   return new Promise((resolve, reject) => {
     const options = {
-      headers: { 'User-Agent': 'rydberg-agent-node/2.5.0' },
+      headers: { 'User-Agent': 'rydberg-agent-node/2.5.1' },
+      timeout: 30000,
       ...opts,
     };
-    https.get(url, options, (res) => {
+    const req = https.get(url, options, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return resolve(httpsGet(res.headers.location, opts));
       }
@@ -32,8 +33,29 @@ function httpsGet(url, opts = {}) {
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve(Buffer.concat(chunks)));
       res.on('error', reject);
-    }).on('error', reject);
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error(`Timeout for ${url}`)); });
   });
+}
+
+/**
+ * HTTPS GET with automatic retry on failure.
+ */
+async function httpsGetWithRetry(url, opts = {}, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await httpsGet(url, opts);
+    } catch (err) {
+      if (i < retries - 1) {
+        const wait = (i + 1) * 3000;
+        process.stdout.write(`\n  Retry ${i + 1}/${retries - 1} in ${wait / 1000}s (${err.message})...`);
+        await new Promise(r => setTimeout(r, wait));
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
 /**
@@ -41,7 +63,7 @@ function httpsGet(url, opts = {}) {
  */
 async function downloadFile(url, dest, label) {
   process.stdout.write(`  Downloading ${label}...`);
-  const buf = await httpsGet(url);
+  const buf = await httpsGetWithRetry(url);
   fs.writeFileSync(dest, buf);
   process.stdout.write(` done (${(buf.length / 1024 / 1024).toFixed(1)} MB)\n`);
   return dest;
@@ -52,7 +74,7 @@ async function downloadFile(url, dest, label) {
  * Returns { tag, assets: [{name, url}] }
  */
 async function fetchRelease() {
-  const data = await httpsGet(GITHUB_API);
+  const data = await httpsGetWithRetry(GITHUB_API);
   const json = JSON.parse(data.toString());
   const tag = json.tag_name;
   if (!tag) throw new Error('Could not determine latest release tag');
@@ -165,9 +187,9 @@ async function downloadBinary(installDir) {
  */
 async function fetchRepoFile(filePath, tag) {
   const url = `${GITHUB_CONTENTS}/${filePath}?ref=${tag}`;
-  const data = await httpsGet(url, {
+  const data = await httpsGetWithRetry(url, {
     headers: {
-      'User-Agent': 'rydberg-agent-node/2.5.0',
+      'User-Agent': 'rydberg-agent-node/2.5.1',
       'Accept': 'application/vnd.github.raw',
     },
   });
