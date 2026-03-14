@@ -1,6 +1,6 @@
 # ProbeChain Rydberg: A Gold-Anchored Proof-of-Behavior Blockchain
 
-**Technical Whitepaper v2.0 — March 2026**
+**Technical Whitepaper v2.1 — March 2026**
 
 ---
 
@@ -45,9 +45,39 @@ Two node types participate:
 
 ### 2.3 Block Production
 
-Within each epoch, the validator set is fixed. Validators take turns producing blocks in round-robin order. In-turn validators produce with priority (difficulty = 2); out-of-turn validators act as fallback (difficulty = 1). This ensures liveness even if the in-turn validator is offline.
+Within each epoch, the validator set is fixed. Validators take turns producing blocks via weighted round-robin selection based on behavioral scores. When all scores are equal (e.g., at genesis), selection is simple round-robin:
 
-### 2.4 Validator Governance
+```
+producer_index = block_number % epoch_length % validator_count
+producer = validators[producer_index]
+```
+
+When scores diverge, selection uses a deterministic weighted random algorithm seeded by the parent hash and block number, ensuring fairness proportional to behavior.
+
+### 2.4 Ack-Based Block Finalization
+
+After each block, all validators broadcast **acknowledgments (acks)** indicating agreement or opposition:
+
+```
+Ack = {
+  EpochPosition:  validator index in the current epoch
+  Number:         block number being acknowledged
+  BlockHash:      hash of the acknowledged block (agree) or empty (oppose)
+  AckType:        0 = Agree, 1 = Oppose
+  WitnessSig:     validator's cryptographic signature
+}
+```
+
+Block production proceeds when the producer collects sufficient acks:
+
+| Threshold | Formula | 9 validators | Effect |
+|-----------|---------|-------------|--------|
+| MostValidatorWitness | n*2/3 + 1 | 7 | Immediate commit |
+| LeastValidatorWitness | n*1/3 + 1 | 4 | Delayed commit (3s grace) |
+
+The ack gossip protocol uses square-root fan-out: each node forwards acks to sqrt(N) peers, achieving O(log N) propagation with minimal bandwidth.
+
+### 2.5 Validator Governance
 
 New validators are added or removed through **on-chain voting**:
 
@@ -432,11 +462,17 @@ curl -sSL https://raw.githubusercontent.com/ProbeChain/Rydberg-Mainnet/main/scri
 irm https://raw.githubusercontent.com/ProbeChain/Rydberg-Mainnet/main/scripts/install.ps1 | iex
 ```
 
-### Bootnode
+### Network Endpoints
 
-```
-enode://c56b6a7949fa9f6cf6e809863223fa9a444440a8f7fd4776ff5437f4c0db8d5775f7c0d3bfa0e6270242aa3811b776c9ef19d12c47a0f6e76f25b430a99071e9@bore.pub:9208
-```
+| Resource | URL |
+|----------|-----|
+| Public RPC | `https://proscan.pro/chain/rydberg-rpc` |
+| Block Explorer | [proscan.pro/rydberg](https://proscan.pro/rydberg) |
+| Chain ID | 8004 |
+
+### Bootnodes
+
+The testnet is operated by 9 validators across 3 cloud nodes (Alibaba Cloud, Tokyo). Bootnodes are listed in [`bootnodes.txt`](../bootnodes.txt) and fetched automatically by the installer.
 
 ---
 
@@ -448,6 +484,6 @@ Emission is not arbitrary — it tracks real transaction volume and decays again
 
 ---
 
-**Chain ID:** 8004 | **Block Time:** 15s | **Consensus:** Proof-of-Behavior | **Token:** PROBE | **Gold Target:** 36,000 metric tons
+**Chain ID:** 8004 | **Block Time:** 15s | **Consensus:** Proof-of-Behavior | **Token:** PROBE | **Gold Target:** 36,000 metric tons | **RPC:** proscan.pro/chain/rydberg-rpc | **Explorer:** proscan.pro/rydberg
 
 *ProbeChain Foundation, 2026.*
