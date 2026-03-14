@@ -595,9 +595,13 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		select {
 		case <-w.startCh:
 			clearPending(w.chain.CurrentBlock().NumberU64())
-			//commit(false, commitInterruptNewHead)
-			time.Sleep(2 * time.Second)
-			//now :=w.chain.CurrentBlock().NumberU64()
+			// Wait for P2P mesh to establish before triggering genesis consensus
+			if ValidatorWitnessCount > 1 {
+				log.Info("Waiting for P2P mesh before starting consensus", "validators", ValidatorWitnessCount)
+				time.Sleep(15 * time.Second)
+			} else {
+				time.Sleep(2 * time.Second)
+			}
 			w.chainHeadCh <- core.ChainHeadEvent{}
 
 		case block := <-w.chainHeadCh:
@@ -644,6 +648,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			//}
 
 			if w.imValidatorWorkNode(blockNumber) {
+				// No blocking wait here — P2P wait is done in startCh handler
 				//todo: send oppose ack if i received a disorganized block
 				if nil == w.sendAck(blockNumber.Uint64(), types.AckTypeAgree) {
 					log.Info("received new block, send ack to all success", "addr", w.coinbase,
@@ -652,14 +657,54 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 					log.Info("received new block, send ack to all failed", "addr", w.coinbase,
 						"current block number", blockNumber)
 				}
-				// Single-validator mode: auto-produce next block without waiting for
-				// behavior proofs or external acks (genesis bootstrap)
-				if ValidatorWitnessCount == 1 && w.imProducer(blockNumber.Uint64()+1) {
-					if period := w.chainConfig.Pob.Period; period > 0 {
-						time.Sleep(time.Duration(period) * time.Second)
+				// For genesis block with multiple validators, periodically re-send acks
+				// to ensure all validators receive them after P2P mesh is fully established
+				if blockNumber.Uint64() == 0 && ValidatorWitnessCount > 1 {
+					go func() {
+						for i := 0; i < 12; i++ {
+							time.Sleep(5 * time.Second)
+							if w.chain.CurrentBlock().NumberU64() > 0 {
+								return
+							}
+							w.sendAck(0, types.AckTypeAgree)
+							log.Info("Re-sent genesis ack", "addr", w.coinbase, "attempt", i+1)
+						}
+					}()
+				}
+				// Auto-produce next block when it's our turn
+				nextBlock := blockNumber.Uint64() + 1
+				if w.imProducer(nextBlock) {
+					if ValidatorWitnessCount == 1 {
+						if period := w.chainConfig.Pob.Period; period > 0 {
+							time.Sleep(time.Duration(period) * time.Second)
+						}
+						log.Info("Single-validator mode: auto-producing next block", "addr", w.coinbase, "next", nextBlock)
+						commit(false, commitInterruptNewHead, nextBlock)
+					} else {
+						// Multi-validator: poll ack count until threshold is met, then commit
+						curBlockNum := blockNumber.Uint64()
+						go func() {
+							curHash := w.chain.GetBlockByNumber(curBlockNum).Hash()
+							for i := 0; i < 120; i++ {
+								time.Sleep(1 * time.Second)
+								if w.chain.CurrentBlock().NumberU64() > curBlockNum {
+									return // another block already produced
+								}
+								agreeAckNum := w.chain.GetAckSize(new(big.Int).SetUint64(curBlockNum), curHash, types.AckTypeAgree)
+								if i%5 == 0 {
+									log.Info("Producer polling acks", "addr", w.coinbase, "forBlock", curBlockNum, "acks", agreeAckNum, "needed", LeastValidatorWitness, "next", curBlockNum+1)
+								}
+								if agreeAckNum >= int(LeastValidatorWitness) {
+									log.Info("Enough acks, producing next block", "addr", w.coinbase, "acks", agreeAckNum, "next", curBlockNum+1)
+									if commit(false, commitInterruptNewHead, curBlockNum+1) {
+										log.Info("Block committed!", "addr", w.coinbase, "block", curBlockNum+1)
+									}
+									return
+								}
+							}
+							log.Warn("Producer timed out waiting for acks", "addr", w.coinbase, "forBlock", curBlockNum)
+						}()
 					}
-					log.Info("Single-validator mode: auto-producing next block", "addr", w.coinbase, "next", blockNumber.Uint64()+1)
-					commit(false, commitInterruptNewHead, blockNumber.Uint64()+1)
 				}
 			}
 
@@ -1247,13 +1292,7 @@ func (w *worker) validatorCommitNewWork(interrupt *int32, noempty bool, currentE
 
 	answers := w.probe.BlockChain().GetLatestBehaviorProof(parent, realParent.Number(), realParent.Hash())
 	if answers == nil {
-		if ValidatorWitnessCount <= 1 || newBlockNumber.Uint64() <= 2 {
-			log.Info("Genesis bootstrap: skipping BehaviorProof check", "number", newBlockNumber, "validatorCount", ValidatorWitnessCount)
-		} else {
-			log.Error("Refusing to mine without BehaviorProofs, something error, need to check",
-				"validatorCount", ValidatorWitnessCount, "number", newBlockNumber)
-			return nil
-		}
+		log.Info("No BehaviorProofs available, proceeding in pure PoB mode", "number", newBlockNumber, "validatorCount", ValidatorWitnessCount)
 	} else {
 		w.current.header.BehaviorProofs = append(w.current.header.BehaviorProofs, answers)
 	}

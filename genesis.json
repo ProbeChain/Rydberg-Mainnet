@@ -38,8 +38,40 @@
             "demotionThreshold": 1000,
             "list": [
                 {
-                    "enode": "enode://c56b6a7949fa9f6cf6e809863223fa9a444440a8f7fd4776ff5437f4c0db8d5775f7c0d3bfa0e6270242aa3811b776c9ef19d12c47a0f6e76f25b430a99071e9@bore.pub:9208",
-                    "owner": "0x1d82bad98d5dc507e5adb29375edabd5830dee6a"
+                    "enode": "enode://e963c6b5342f0af311b0347fab33238aa564617241222dc93a4691ef2c76990b69e87e98a300aa08fc4deba023017006cd38e7cf28aa92bf13a93e8ff0c1387a@8.216.37.182:30398",
+                    "owner": "0x4be266e7634b5fca22ec130b46ab7df422e02143"
+                },
+                {
+                    "enode": "enode://e742e55bae150ad4f004642d3a7365d2fe07f14b3ee7105fa47f6257e55937a90e5380b1a879c2e1e40295b0b482553536822b38615eecf444b5d8394c21a26e@8.216.49.15:30398",
+                    "owner": "0x9adbf008aed2057d48dd3d4eb720ee2833660c1f"
+                },
+                {
+                    "enode": "enode://bfb54dde94a526375a7ddbec0a4e5e174394c02f8a1c4c5ebec2aa5a05188398849895fc11973b09f3eec49dbd12ea9c8cb924e194e2857560c87d2f8a557bad@8.216.32.20:30398",
+                    "owner": "0x4f6ff433914d4fc9ce921fdce7fa1dca1390ef86"
+                },
+                {
+                    "enode": "enode://ae9a71d5d093db25cb040b2d1e2712f06208f89f13abb95ceaa87e050469e9210a599535c8e4e820014e915161897179c2bb153bace4409b5fb6093b336fa0bd@8.216.37.182:30399",
+                    "owner": "0x4cfca7772d2105c2ce914dc482abe1225e6ebc39"
+                },
+                {
+                    "enode": "enode://bdad383402fbf83129f06afe34919fc2a3ceb06323b4c41b672275b5294667614d7a9894301c54afdb455dacf8b553df065048b79fef398590289d70b1e9a9a8@8.216.49.15:30399",
+                    "owner": "0xa259702af0a009e59d0762a335575c72fc897002"
+                },
+                {
+                    "enode": "enode://5a6dbde04bdeaa0f4d5622dc8e0247d1b740c989361b2c8c4ee74625899513609815ebd4aec1e9612f4f399117c48ff61896f648d6f8dfd1683b02288c8ba07e@8.216.32.20:30399",
+                    "owner": "0x5eff7908fd6e9f9bc2ac3faed55251f0127d752f"
+                },
+                {
+                    "enode": "enode://d61a4ff17e1134a587be08382dc4ab02ccebbc3cabdfc1b30dee9fb11f52f3e9cf65473835dede204814d9df07b04439a6dc76bb8e1d8f33b1f75d6da31aa3eb@8.216.37.182:30400",
+                    "owner": "0x28ac9d8c23b7499407dff85bf50651fd6e62352d"
+                },
+                {
+                    "enode": "enode://98d061907c35557f1f48dc4c7f60e41e2ba1a59ed2838890a6a14385fc7f69100967ba280ee8d7048121a13644ff387bdbbceab4360c9d9b6817b154a2938979@8.216.49.15:30400",
+                    "owner": "0xaf2e662a612e864d4ec272811ff1f519994c18d1"
+                },
+                {
+                    "enode": "enode://ff37328137428ae842f731db34c6cff6f289ccc884547d93fab303f01c4a6a86fa61b242797147f818361f52d07c7439072a864e692d0f265983b136f486fc17@8.216.32.20:30400",
+                    "owner": "0x123993ae3cda61266b8e924e2f37270e61f199a2"
                 }
             ]
         }
@@ -52,9 +84,16 @@
     "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "coinbase": "0x0000000000000000000000000000000000000000",
     "alloc": {
-        "0x1d82bad98d5dc507e5adb29375edabd5830dee6a": {
-            "balance": "1000000000000000000000000000"
-        }
+        "0x4be266e7634b5fca22ec130b46ab7df422e02143": { "balance": "1000000000000000000000000000" },
+        "0x9adbf008aed2057d48dd3d4eb720ee2833660c1f": { "balance": "1000000000000000000000000000" },
+        "0x4f6ff433914d4fc9ce921fdce7fa1dca1390ef86": { "balance": "1000000000000000000000000000" },
+        "0x4cfca7772d2105c2ce914dc482abe1225e6ebc39": { "balance": "1000000000000000000000000000" },
+        "0xa259702af0a009e59d0762a335575c72fc897002": { "balance": "1000000000000000000000000000" },
+        "0x5eff7908fd6e9f9bc2ac3faed55251f0127d752f": { "balance": "1000000000000000000000000000" },
+        "0x28ac9d8c23b7499407dff85bf50651fd6e62352d": { "balance": "1000000000000000000000000000" },
+        "0xaf2e662a612e864d4ec272811ff1f519994c18d1": { "balance": "1000000000000000000000000000" },
+        "0x123993ae3cda61266b8e924e2f37270e61f199a2": { "balance": "1000000000000000000000000000" },
+        "0x1d82bad98d5dc507e5adb29375edabd5830dee6a": { "balance": "1000000000000000000000000000" }
     },
     "number": "0x0",
     "gasUsed": "0x0",

@@ -277,8 +277,9 @@ func (pool *BehaviorProofPool) Add(powAnswer *types.BehaviorProof) {
 
 // AckPool contains all validator ack
 type AckPool struct {
-	check      sync.Map
+	check  sync.Map
 	ackMap sync.Map
+	mu     sync.Mutex // protects ackMap read-modify-write
 }
 
 // NewAckPool return a two-dimension pow answer
@@ -289,8 +290,8 @@ func NewAckPool() *AckPool {
 
 func (pool *AckPool) contain(ack *types.Ack) bool {
 	acks := pool.getAcksByNum(ack.Number.Uint64())
-	for _, ack := range acks {
-		if bytes.Compare(ack.WitnessSig, ack.WitnessSig) == 0 {
+	for _, existing := range acks {
+		if bytes.Compare(existing.WitnessSig, ack.WitnessSig) == 0 {
 			return true
 		}
 	}
@@ -359,6 +360,8 @@ func (pool *AckPool) List(number uint64, blockHash common.Hash, ackType types.Ac
 }
 
 func (pool *AckPool) Add(ack *types.Ack) {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
 	if pool.contain(ack) {
 		return
 	}
@@ -3126,29 +3129,33 @@ func (bc *BlockChain) CheckAck(ack *types.Ack) uint8 {
 	singer, err := ack.RecoverOwner()
 	if err == nil {
 		number := ack.Number.Uint64()
-		if bc.GetValidatorSize(number) == 0 {
-			log.Debug("CheckAck Fail, GetValidatorSize = 0", "ack.Number", number)
+		validatorSize := bc.GetValidatorSize(number)
+		if validatorSize == 0 {
+			log.Info("CheckAck: GetValidatorSize=0, marking uncheck", "ack.Number", number)
 			bc.acks.CheckSet(ack, ackUncheck)
 			return ackUncheck
 		}
 		if !bc.CheckIsValidator(number, singer) {
-			log.Error("CheckAck Fail, singer is not the validator node", "signer", singer, "err", err)
+			log.Info("CheckAck: signer NOT validator", "signer", singer, "number", number, "validatorSize", validatorSize)
 			bc.acks.CheckSet(ack, ackIllegal)
 			return ackIllegal
 		}
 		header := bc.GetHeaderByNumber(number)
 		if header == nil {
-			log.Debug("CheckAck Fail, header not found", "ack.Number", number)
+			log.Info("CheckAck: header not found", "ack.Number", number)
 			bc.acks.CheckSet(ack, ackUncheck)
 			return ackUncheck
 		}
 		curHash := header.Hash()
 		if curHash == ack.BlockHash {
+			log.Info("CheckAck: LEGAL, forwarding to worker", "signer", singer, "number", number)
 			bc.WorkerKnowAcks(ack)
 			bc.acks.CheckSet(ack, ackLegal)
 			return ackLegal
 		}
-		log.Error("CheckAck Fail, hash not match", "signer", singer, "curHash", curHash.String(), "ack.BlockHash", ack.BlockHash.String(), "err", err)
+		log.Info("CheckAck: hash mismatch", "signer", singer, "curHash", curHash.String(), "ack.BlockHash", ack.BlockHash.String())
+	} else {
+		log.Info("CheckAck: RecoverOwner failed", "err", err)
 	}
 	bc.acks.CheckSet(ack, ackIllegal)
 	return ackIllegal
@@ -3157,9 +3164,11 @@ func (bc *BlockChain) CheckAck(ack *types.Ack) uint8 {
 // HandleAck send a validator ack to worker and save it
 func (bc *BlockChain) HandleAck(ack *types.Ack) int {
 	if bc.acks.Contain(ack) {
+		log.Info("HandleAck: ack already contained, skipping", "number", ack.Number, "sig", common.BytesToHash(ack.WitnessSig[:8]))
 		return 0
 	} else {
 		bc.acks.Add(ack)
+		log.Info("HandleAck: ack added, dispatching", "number", ack.Number, "type", ack.AckType, "hash", ack.BlockHash)
 		return bc.DispatchAck()
 	}
 }

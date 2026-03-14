@@ -248,22 +248,21 @@ func (h *probeHandler) handleBehaviorProofBroadcast(peer *probe.Peer, powAnswer 
 // handleAckBroadcast is invoked from a peer's message handler when it transmits a
 // validator ack for the local node to process.
 func (h *probeHandler) handleAckBroadcast(peer *probe.Peer, ack *types.Ack) error {
+	log.Info("handleAckBroadcast received", "from", peer.ID(), "number", ack.Number, "type", ack.AckType, "hash", ack.BlockHash)
 	check := h.chain.CheckAckSketchy(ack)
 	if check {
 		peer.MarkAck(ack.Id())
 		peers := h.peers.peersWithoutAcks(ack)
 		filter := peers[:int(math.Sqrt(float64(len(peers))))]
 		for _, peer := range filter {
-			//log.Debug("handleAckBroadcast", "ack", common.BytesToHash(ack.WitnessSig))
 			peer.MarkAck(ack.Id())
 			peer.AsyncSendAck(ack)
 		}
 
-		//peer.AsyncSendAck(ack)
-
-		h.chain.HandleAck(ack)
+		result := h.chain.HandleAck(ack)
+		log.Info("handleAckBroadcast HandleAck done", "result", result, "number", ack.Number)
 	} else {
-		log.Debug("Ack broadcast fail, because the validator ack is illegality", "check", check, "number", ack.Number, "witnessSig", common.Bytes2Hex(ack.WitnessSig), "BlockHash", ack.BlockHash, "Type", ack.AckType)
+		log.Info("handleAckBroadcast REJECTED", "number", ack.Number, "BlockHash", ack.BlockHash)
 	}
 	return nil
 }
