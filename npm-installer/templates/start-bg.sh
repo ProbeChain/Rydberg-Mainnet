@@ -17,7 +17,7 @@ cd ~/rydberg-agent
   --allow-insecure-unlock \
   --ipcpath ~/rydberg-agent/gprobe.ipc \
   --syncmode full \
-  --bootnodes "ENODE_PLACEHOLDER" \
+  --bootnodes "BOOTNODES_PLACEHOLDER" \
   --verbosity 3 > node.log 2>&1 &
 NODE_PID=$!
 echo "Node started (PID: $NODE_PID)"
@@ -43,8 +43,8 @@ if [ "$IPC_READY" = false ]; then
   exit 0
 fi
 
-# Connect to bootnode via IPC
-./gprobe attach ~/rydberg-agent/gprobe.ipc --exec "admin.addPeer('ENODE_PLACEHOLDER')" 2>/dev/null
+# Connect to bootnodes via IPC
+./gprobe attach ~/rydberg-agent/gprobe.ipc --exec "ADDPEER_PLACEHOLDER" 2>/dev/null
 
 # Auto-register as Agent node (gas-free, consensus-layer registration)
 sleep 3

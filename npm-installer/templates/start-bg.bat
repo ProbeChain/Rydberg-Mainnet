@@ -17,7 +17,7 @@ start "" /b gprobe.exe ^
   --allow-insecure-unlock ^
   --ipcpath \\.\pipe\gprobe.ipc ^
   --syncmode full ^
-  --bootnodes "ENODE_PLACEHOLDER" ^
+  --bootnodes "BOOTNODES_PLACEHOLDER" ^
   --verbosity 3 > node.log 2>&1
 
 echo Node started in background.
@@ -41,8 +41,8 @@ if %IPC_READY%==0 (
   exit /b 0
 )
 
-REM Connect to bootnode
-gprobe.exe attach \\.\pipe\gprobe.ipc --exec "admin.addPeer('ENODE_PLACEHOLDER')" >nul 2>&1
+REM Connect to bootnodes
+gprobe.exe attach \\.\pipe\gprobe.ipc --exec "ADDPEER_PLACEHOLDER" >nul 2>&1
 
 REM Register agent
 timeout /t 3 /nobreak >nul

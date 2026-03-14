@@ -259,15 +259,18 @@ async function downloadGenesis(installDir, tag) {
 }
 
 /**
- * Fetch bootnode enode URL from the release tag.
+ * Fetch bootnode enode URLs from the release tag.
+ * Returns an array of enode URLs.
  */
-async function fetchBootnode(tag) {
+async function fetchBootnodes(tag) {
   const data = await fetchRepoFile('bootnodes.txt', tag);
-  const enode = data.toString().trim().split('\n')[0].trim();
-  if (!enode.startsWith('enode://')) {
-    throw new Error('Invalid bootnode format in bootnodes.txt');
+  const enodes = data.toString().trim().split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('enode://'));
+  if (enodes.length === 0) {
+    throw new Error('No valid bootnodes found in bootnodes.txt');
   }
-  return enode;
+  return enodes;
 }
 
 module.exports = {
@@ -275,5 +278,5 @@ module.exports = {
   fetchRelease,
   downloadBinary,
   downloadGenesis,
-  fetchBootnode,
+  fetchBootnodes,
 };

@@ -8,7 +8,7 @@ const { Writable } = require('stream');
 const { spawnSync, execSync } = require('child_process');
 
 const { detect, checkRequirements, hasCommand } = require('./platform');
-const { downloadBinary, downloadGenesis, fetchBootnode } = require('./download');
+const { downloadBinary, downloadGenesis, fetchBootnodes } = require('./download');
 const { buildFromSource } = require('./build');
 
 // ─── Platform ────────────────────────────────────────────────────
@@ -372,10 +372,13 @@ async function cmdInstall() {
   const initOutput = gprobe('--datadir', './data', 'init', 'genesis.json');
   ok('Genesis initialized (Chain ID: 8004)');
 
-  // 8. Fetch bootnode
-  log('Fetching bootnode...');
-  const enode = await fetchBootnode(releaseTag);
-  ok('Bootnode retrieved');
+  // 8. Fetch bootnodes
+  log('Fetching bootnodes...');
+  const enodes = await fetchBootnodes(releaseTag);
+  ok(`${enodes.length} bootnode(s) retrieved`);
+
+  const bootnodesCsv = enodes.join(',');
+  const addPeerCmds = enodes.map(e => `admin.addPeer('${e}')`).join('; ');
 
   // 9. Generate start script from template (use hex address for IPC compatibility)
   log('Generating start script...');
@@ -383,13 +386,15 @@ async function cmdInstall() {
     const template = fs.readFileSync(path.join(TEMPLATE_DIR, 'start-bg.bat'), 'utf8');
     const script = template
       .replace(/ADDR_PLACEHOLDER/g, hexAddr)
-      .replace(/ENODE_PLACEHOLDER/g, enode);
+      .replace(/BOOTNODES_PLACEHOLDER/g, bootnodesCsv)
+      .replace(/ADDPEER_PLACEHOLDER/g, addPeerCmds);
     fs.writeFileSync(START_SCRIPT, script);
   } else {
     const template = fs.readFileSync(path.join(TEMPLATE_DIR, 'start-bg.sh'), 'utf8');
     const script = template
       .replace(/ADDR_PLACEHOLDER/g, hexAddr)
-      .replace(/ENODE_PLACEHOLDER/g, enode);
+      .replace(/BOOTNODES_PLACEHOLDER/g, bootnodesCsv)
+      .replace(/ADDPEER_PLACEHOLDER/g, addPeerCmds);
     fs.writeFileSync(START_SCRIPT, script, { mode: 0o755 });
   }
   ok(`${isWin ? 'start-bg.bat' : 'start-bg.sh'} generated`);
