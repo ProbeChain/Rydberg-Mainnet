@@ -546,7 +546,50 @@ require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requ
      * address[][6][], ...
      */
     var SolidityTypeAddress = function () {
-      this._inputFormatter = f.formatInputInt;
+      this._inputFormatter = function (value) {
+        // ProbeChain: convert bech32 pro1... to hex before ABI encoding
+        if (typeof value === 'string' && value.toLowerCase().indexOf('pro1') === 0) {
+          var _cs = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+          var _b = value.toLowerCase();
+          var _p = _b.lastIndexOf('1');
+          if (_p >= 1 && _b.substring(0, _p) === 'pro') {
+            var _ds = _b.substring(_p + 1);
+            if (_ds.length >= 7) {
+              var _d = [], _ok = true;
+              for (var _i = 0; _i < _ds.length; _i++) {
+                var _x = _cs.indexOf(_ds.charAt(_i));
+                if (_x === -1) { _ok = false; break; }
+                _d.push(_x);
+              }
+              if (_ok) {
+                var _gen = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+                var _hrpExp = [3, 3, 3, 0, 16, 18, 15];
+                var _vals = _hrpExp.concat(_d);
+                var _chk = 1;
+                for (var _i = 0; _i < _vals.length; _i++) {
+                  var _b0 = _chk >>> 25;
+                  _chk = ((_chk & 0x1ffffff) << 5) ^ _vals[_i];
+                  for (var _j = 0; _j < 5; _j++) { if ((_b0 >>> _j) & 1) _chk ^= _gen[_j]; }
+                }
+                if (_chk === 1) {
+                  var _d5 = _d.slice(0, _d.length - 6);
+                  var _acc = 0, _bits = 0, _bytes = [];
+                  for (var _i = 0; _i < _d5.length; _i++) {
+                    _acc = (_acc << 5) | _d5[_i]; _bits += 5;
+                    while (_bits >= 8) { _bits -= 8; _bytes.push((_acc >>> _bits) & 255); }
+                  }
+                  if (_bytes.length === 20) {
+                    var _hex = '0x';
+                    for (var _i = 0; _i < _bytes.length; _i++) { _hex += ('0' + _bytes[_i].toString(16)).slice(-2); }
+                    value = _hex;
+                  }
+                }
+              }
+            }
+          }
+        }
+        return f.formatInputInt(value);
+      };
       this._outputFormatter = f.formatOutputAddress;
     };
 
@@ -2245,15 +2288,141 @@ require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requ
       return bigNumber;
     };
 
+    // ── ProbeChain Bech32 address support ──────────────────────
+    // Allows both 0x-hex and pro1-bech32 addresses everywhere.
+    var BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    var BECH32_HRP = 'pro';
+
+    var _bech32Polymod = function (values) {
+      var GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+      var chk = 1;
+      for (var i = 0; i < values.length; i++) {
+        var b = chk >>> 25;
+        chk = ((chk & 0x1ffffff) << 5) ^ values[i];
+        for (var j = 0; j < 5; j++) {
+          if ((b >>> j) & 1) chk ^= GEN[j];
+        }
+      }
+      return chk;
+    };
+
+    var _bech32HrpExpand = function (hrp) {
+      var ret = [];
+      for (var i = 0; i < hrp.length; i++) ret.push(hrp.charCodeAt(i) >> 5);
+      ret.push(0);
+      for (var i = 0; i < hrp.length; i++) ret.push(hrp.charCodeAt(i) & 31);
+      return ret;
+    };
+
+    /**
+     * Decode a Bech32 pro1... address to 0x-hex address.
+     * Returns null if not a valid bech32 address.
+     */
+    var bech32ToHex = function (bech) {
+      if (typeof bech !== 'string') return null;
+      bech = bech.toLowerCase();
+      var pos = bech.lastIndexOf('1');
+      if (pos < 1) return null;
+      var hrp = bech.substring(0, pos);
+      if (hrp !== BECH32_HRP) return null;
+      var dataStr = bech.substring(pos + 1);
+      if (dataStr.length < 7) return null; // at least 1 data char + 6 checksum
+      var data = [];
+      for (var i = 0; i < dataStr.length; i++) {
+        var idx = BECH32_CHARSET.indexOf(dataStr.charAt(i));
+        if (idx === -1) return null;
+        data.push(idx);
+      }
+      // Verify checksum
+      var expanded = _bech32HrpExpand(hrp).concat(data);
+      if (_bech32Polymod(expanded) !== 1) return null;
+      // Convert 5-bit to 8-bit (strip 6-char checksum)
+      var data5 = data.slice(0, data.length - 6);
+      var acc = 0, bits = 0, result = [];
+      for (var i = 0; i < data5.length; i++) {
+        acc = (acc << 5) | data5[i];
+        bits += 5;
+        while (bits >= 8) {
+          bits -= 8;
+          result.push((acc >>> bits) & 255);
+        }
+      }
+      if (result.length !== 20) return null;
+      var hex = '0x';
+      for (var i = 0; i < result.length; i++) {
+        hex += ('0' + result[i].toString(16)).slice(-2);
+      }
+      return hex;
+    };
+
+    /**
+     * Encode a 0x-hex address to Bech32 pro1... format.
+     */
+    var hexToBech32 = function (hexAddr) {
+      if (typeof hexAddr !== 'string') return null;
+      hexAddr = hexAddr.replace(/^0x/i, '').toLowerCase();
+      if (hexAddr.length !== 40 || !/^[0-9a-f]{40}$/.test(hexAddr)) return null;
+      // Parse hex to bytes
+      var bytes = [];
+      for (var i = 0; i < 40; i += 2) {
+        bytes.push(parseInt(hexAddr.substring(i, i + 2), 16));
+      }
+      // Convert 8-bit to 5-bit
+      var acc = 0, bits = 0, data5 = [];
+      for (var i = 0; i < bytes.length; i++) {
+        acc = (acc << 8) | bytes[i];
+        bits += 8;
+        while (bits >= 5) {
+          bits -= 5;
+          data5.push((acc >>> bits) & 31);
+        }
+      }
+      if (bits > 0) data5.push((acc << (5 - bits)) & 31);
+      // Create checksum
+      var values = _bech32HrpExpand(BECH32_HRP).concat(data5).concat([0,0,0,0,0,0]);
+      var mod = _bech32Polymod(values) ^ 1;
+      var checksum = [];
+      for (var i = 0; i < 6; i++) {
+        checksum.push((mod >>> (5 * (5 - i))) & 31);
+      }
+      var combined = data5.concat(checksum);
+      var ret = BECH32_HRP + '1';
+      for (var i = 0; i < combined.length; i++) {
+        ret += BECH32_CHARSET.charAt(combined[i]);
+      }
+      return ret;
+    };
+
+    /**
+     * Check if string is a Bech32 ProbeChain address (pro1...).
+     */
+    var isProbeAddress = function (address) {
+      return bech32ToHex(address) !== null;
+    };
+
+    /**
+     * Normalize any address to 0x-hex format.
+     * Accepts both 0x-hex and pro1-bech32.
+     */
+    var normalizeAddress = function (address) {
+      if (typeof address !== 'string') return address;
+      if (/^0x[0-9a-f]{40}$/i.test(address)) return address;
+      if (/^[0-9a-f]{40}$/i.test(address)) return '0x' + address;
+      var hex = bech32ToHex(address);
+      if (hex) return hex;
+      return address; // return as-is, let downstream handle the error
+    };
+    // ── End ProbeChain Bech32 support ────────────────────────
+
     /**
      * Checks if the given string is strictly an address
      *
      * @method isStrictAddress
-     * @param {String} address the given HEX address
+     * @param {String} address the given HEX or Bech32 address
      * @return {Boolean}
      */
     var isStrictAddress = function (address) {
-      return /^0x[0-9a-f]{40}$/i.test(address);
+      return /^0x[0-9a-f]{40}$/i.test(address) || isProbeAddress(address);
     };
 
     /**
@@ -2264,6 +2433,10 @@ require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requ
      * @return {Boolean}
      */
     var isAddress = function (address) {
+      // ProbeChain: also accept pro1... Bech32 addresses
+      if (isProbeAddress(address)) {
+        return true;
+      }
       if (!/^(0x)?[0-9a-f]{40}$/i.test(address)) {
         // check if it has the basic requirements of an address
         return false;
@@ -2481,6 +2654,10 @@ require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requ
       isAddress: isAddress,
       isChecksumAddress: isChecksumAddress,
       toChecksumAddress: toChecksumAddress,
+      isProbeAddress: isProbeAddress,
+      bech32ToHex: bech32ToHex,
+      hexToBech32: hexToBech32,
+      normalizeAddress: normalizeAddress,
       isFunction: isFunction,
       isString: isString,
       isObject: isObject,
@@ -2600,6 +2777,10 @@ require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requ
     Web3.prototype.isChecksumAddress = utils.isChecksumAddress;
     Web3.prototype.toChecksumAddress = utils.toChecksumAddress;
     Web3.prototype.isIBAN = utils.isIBAN;
+    Web3.prototype.isProbeAddress = utils.isProbeAddress;
+    Web3.prototype.bech32ToHex = utils.bech32ToHex;
+    Web3.prototype.hexToBech32 = utils.hexToBech32;
+    Web3.prototype.normalizeAddress = utils.normalizeAddress;
     Web3.prototype.padLeft = utils.padLeft;
     Web3.prototype.padRight = utils.padRight;
 
@@ -3948,6 +4129,49 @@ require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requ
     };
 
     var inputAddressFormatter = function (address) {
+      // ProbeChain: auto-convert pro1... Bech32 to 0x-hex (inline decoder)
+      if (typeof address === 'string' && address.toLowerCase().indexOf('pro1') === 0) {
+        var _cs = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+        var _b = address.toLowerCase();
+        var _p = _b.lastIndexOf('1');
+        if (_p >= 1 && _b.substring(0, _p) === 'pro') {
+          var _ds = _b.substring(_p + 1);
+          if (_ds.length >= 7) {
+            var _d = [], _ok = true;
+            for (var _i = 0; _i < _ds.length; _i++) {
+              var _x = _cs.indexOf(_ds.charAt(_i));
+              if (_x === -1) { _ok = false; break; }
+              _d.push(_x);
+            }
+            if (_ok) {
+              // Verify bech32 checksum
+              var _gen = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+              var _hrpExp = [3, 3, 3, 0, 16, 18, 15]; // 'pro' hrpExpand: p=112>>5=3, r=114>>5=3, o=111>>5=3, 0, p&31=16, r&31=18, o&31=15
+              var _vals = _hrpExp.concat(_d);
+              var _chk = 1;
+              for (var _i = 0; _i < _vals.length; _i++) {
+                var _b0 = _chk >>> 25;
+                _chk = ((_chk & 0x1ffffff) << 5) ^ _vals[_i];
+                for (var _j = 0; _j < 5; _j++) { if ((_b0 >>> _j) & 1) _chk ^= _gen[_j]; }
+              }
+              if (_chk === 1) {
+                // Convert 5-bit to 8-bit (strip 6-char checksum)
+                var _d5 = _d.slice(0, _d.length - 6);
+                var _acc = 0, _bits = 0, _bytes = [];
+                for (var _i = 0; _i < _d5.length; _i++) {
+                  _acc = (_acc << 5) | _d5[_i]; _bits += 5;
+                  while (_bits >= 8) { _bits -= 8; _bytes.push((_acc >>> _bits) & 255); }
+                }
+                if (_bytes.length === 20) {
+                  var _hex = '0x';
+                  for (var _i = 0; _i < _bytes.length; _i++) { _hex += ('0' + _bytes[_i].toString(16)).slice(-2); }
+                  return _hex;
+                }
+              }
+            }
+          }
+        }
+      }
       var iban = new Iban(address);
       if (iban.isValid() && iban.isDirect()) {
         return '0x' + iban.address();

@@ -567,6 +567,10 @@ func (args *FilterCriteria) UnmarshalJSON(data []byte) error {
 }
 
 func decodeAddress(s string) (common.Address, error) {
+	// ProbeChain: accept both 0x-hex and pro1-bech32 addresses
+	if common.IsProbeAddress(s) {
+		return common.Bech32ToAddress(s)
+	}
 	b, err := hexutil.Decode(s)
 	if err == nil && len(b) != common.AddressLength {
 		err = fmt.Errorf("hex has invalid length %d after decoding; expected %d for address", len(b), common.AddressLength)

@@ -119,6 +119,11 @@ func (miner *Miner) update() {
 					miner.SetProbebase(miner.coinbase)
 					miner.worker.start()
 				}
+				// After sync failure, stop reacting to downloader events
+				// to prevent repeated sync-mining interruptions when all
+				// peers are at the same height (no blocks to sync)
+				log.Info("Sync failed, disabling sync-mining interruption to prevent consensus stall")
+				events.Unsubscribe()
 			case downloader.DoneEvent:
 				canStart = true
 				if shouldStart {

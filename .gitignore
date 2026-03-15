@@ -103,3 +103,4 @@ SECURITY.md
 appveyor.yml
 circle.yml
 genesis_pob.json
+accounts/

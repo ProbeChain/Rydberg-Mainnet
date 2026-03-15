@@ -298,6 +298,7 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 	go worker.powMinerResultLoop()
 
 	go worker.commitAckLoop()
+	go worker.ackMonitorLoop()
 
 	// Start StellarSpeed loop if configured
 	if chainConfig.StellarSpeed != nil && chainConfig.StellarSpeed.Enabled {
@@ -328,6 +329,66 @@ func (w *worker) commitAckLoop() {
 			return
 		}
 		time.Sleep(5 * time.Second)
+	}
+}
+
+// ackMonitorLoop is a persistent goroutine that prevents consensus stalls.
+// It detects when the chain is stuck (no new blocks) and forces the consensus
+// to restart by re-injecting chainHeadEvent. This bypasses the sync-mining
+// deadlock where all nodes are at the same height and can't sync from each other.
+func (w *worker) ackMonitorLoop() {
+	if ValidatorWitnessCount <= 1 {
+		return
+	}
+	time.Sleep(25 * time.Second)
+	log.Info("Ack monitor started", "addr", w.coinbase, "validators", ValidatorWitnessCount)
+
+	var lastHeight uint64
+	var stuckCount int
+
+	for {
+		select {
+		case <-w.exitCh:
+			return
+		default:
+		}
+		time.Sleep(3 * time.Second)
+
+		curBlock := w.chain.CurrentBlock()
+		if curBlock == nil {
+			continue
+		}
+		curNum := curBlock.NumberU64()
+
+		if curNum > lastHeight {
+			// Chain is advancing — reset stuck counter
+			lastHeight = curNum
+			stuckCount = 0
+			continue
+		}
+
+		// Chain stuck at same height
+		stuckCount++
+		if stuckCount < 3 {
+			// Re-send ack to help propagation
+			w.sendAck(curNum, types.AckTypeAgree)
+			continue
+		}
+
+		// Chain stuck for >9 seconds — force restart consensus
+		log.Info("Ack monitor: chain stalled, forcing consensus restart",
+			"addr", w.coinbase, "block", curNum, "stuckFor", stuckCount*3, "seconds")
+
+		// Re-inject chainHeadEvent to restart the mining loop
+		select {
+		case w.chainHeadCh <- core.ChainHeadEvent{}:
+			log.Info("Ack monitor: chainHeadEvent re-injected")
+		default:
+			log.Debug("Ack monitor: chainHeadCh full, skipping")
+		}
+
+		stuckCount = 0
+		time.Sleep(10 * time.Second) // Wait for consensus to restart
 	}
 }
 
