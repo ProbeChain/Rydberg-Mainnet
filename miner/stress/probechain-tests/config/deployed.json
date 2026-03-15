@@ -1,0 +1,39 @@
+{
+  "chainId": 8004,
+  "network": "rydberg-testnet",
+  "rpcProxy": "https://proscan.pro/chain/rydberg-rpc",
+  "deployedContracts": {
+    "SimpleToken": {
+      "address": "0x3a6575bdd09cd185868c55b47ad143b1b1cf66c1",
+      "bech32": "pro18fjht0wsnngctp5v2k68452rkxcu7ekpqwthhw",
+      "compiler": "solc 0.8.30 --evm-version london",
+      "deployTx": "0x0bb7fe08875e1e2c2e879afe0add175eb03b6fd2d80d610c80627e333fd08f36"
+    },
+    "IdentityRegistry": {
+      "address": "0x93b5cd81f2003623eb9363a188b4698015f3e663",
+      "bech32": "pro1jw6umq0jqqmz86unvwsc3drfsq2l8enrje6kcg",
+      "compiler": "solcjs 0.6.12 --optimize",
+      "deployTx": "0xc105b8c7a5b020a589de9c98a1422d0506ca95004635e3efebbd9c94481a2ec4"
+    },
+    "KeyTrading": {
+      "address": "pro154e9gj0xnvrl3zyxkqyaae08pmuveaf8ffzag4",
+      "compiler": "solcjs 0.6.12 --optimize",
+      "gasUsed": 719501
+    },
+    "MiniSwap": {
+      "address": "pro1d3ugls6ld8ddce3lgqfc8weu6u98s2fg3jvnvd",
+      "compiler": "solcjs 0.6.12",
+      "gasUsed": 823508
+    },
+    "TokenB": {
+      "address": "pro1jasausgpme4x30k7nl3uumtnyl72svncu2qxkj",
+      "compiler": "solcjs 0.6.12",
+      "gasUsed": 373174
+    }
+  },
+  "testAccounts": {
+    "coinbase": "0x4be266e7634b5fca22ec130b46ab7df422e02143",
+    "A1": "0x3dff08a96aac3c923fd50f9d878ec73e8fa5f9a1",
+    "A2": "0x4aa863aff32bed671177f1d7a26258f6db248179"
+  }
+}
