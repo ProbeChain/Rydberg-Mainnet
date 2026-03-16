@@ -11,7 +11,14 @@ rydberg-agent-node
 npx -y rydberg-agent-node
 ```
 
-That's it. No staking. No hardware. No dependencies. Your node starts earning rewards in under 60 seconds.
+**No Node.js?** Use curl instead:
+
+```bash
+# macOS / Linux
+curl -sSL https://raw.githubusercontent.com/ProbeChain/Rydberg-Mainnet/main/scripts/install.sh | bash
+```
+
+That's it. No staking. No hardware. Your node starts earning rewards in under 60 seconds.
 
 ---
 
