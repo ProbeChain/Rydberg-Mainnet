@@ -357,7 +357,15 @@ async function cmdInstall() {
   await downloadGenesis(INSTALL_DIR, releaseTag);
   ok('Genesis config downloaded');
 
-  // 6. Create account
+  // 6. Create account (clear old keystore if reinstalling — password mismatch)
+  const keystoreDir = path.join(DATA_DIR, 'keystore');
+  if (fs.existsSync(keystoreDir)) {
+    const oldKeys = fs.readdirSync(keystoreDir).filter(f => f.startsWith('UTC-'));
+    if (oldKeys.length > 0) {
+      warn('Removing old keystore (new password generated)');
+      for (const f of oldKeys) { try { fs.unlinkSync(path.join(keystoreDir, f)); } catch {} }
+    }
+  }
   log('Creating account...');
   const accountOutput = gprobe('--datadir', './data', 'account', 'new', '--password', 'password.txt');
   // Match pro1... (bech32) or 0x... (hex) address format
