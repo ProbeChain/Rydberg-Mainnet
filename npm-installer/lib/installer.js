@@ -288,8 +288,15 @@ async function cmdInstall() {
       await cmdStatus();
       return;
     }
-    // Node exists but not running — proceed with install
+    // Node exists but not running — kill any orphaned processes first
     warn('Existing installation found but not a running Rydberg node. Reinstalling...');
+    if (isWin) {
+      try { execSync('taskkill /F /IM gprobe.exe 2>nul', { stdio: 'ignore' }); } catch {}
+      sleepSync(2);
+    } else {
+      try { execSync('pkill -f "gprobe.*networkid 8004" 2>/dev/null', { stdio: 'ignore' }); } catch {}
+      sleepSync(1);
+    }
   }
 
   // 3. Password input
@@ -305,16 +312,27 @@ async function cmdInstall() {
   // Create install directory
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
 
-  // Save password (restricted permissions)
-  if (isWin) {
-    fs.writeFileSync(PASSWORD_FILE, pwd);
+  // Save password (restricted permissions, retry if file locked)
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      execSync(`icacls "${PASSWORD_FILE}" /inheritance:r /grant:r "%USERNAME%:(R)"`, { stdio: 'ignore' });
-    } catch {}
-  } else {
-    fs.writeFileSync(PASSWORD_FILE, pwd, { mode: 0o600 });
+      if (isWin) {
+        fs.writeFileSync(PASSWORD_FILE, pwd);
+        try { execSync(`icacls "${PASSWORD_FILE}" /inheritance:r /grant:r "%USERNAME%:(R)"`, { stdio: 'ignore' }); } catch {}
+      } else {
+        fs.writeFileSync(PASSWORD_FILE, pwd, { mode: 0o600 });
+      }
+      ok('Password saved');
+      break;
+    } catch (e) {
+      if (attempt < 2) {
+        warn(`Password file locked, retrying... (${e.code || e.message})`);
+        if (isWin) { try { execSync('taskkill /F /IM gprobe.exe 2>nul', { stdio: 'ignore' }); } catch {} }
+        sleepSync(3);
+      } else {
+        fail(`Cannot write password file: ${e.message}. Stop any running gprobe process and try again.`);
+      }
+    }
   }
-  ok('Password saved');
 
   // 4. Download or build gprobe (fallback to source build if download fails)
   let releaseTag;
