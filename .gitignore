@@ -39,6 +39,12 @@ genesis_test.json
 
 # Local state
 .claude/
+node-data/
+node-data-old*/
+*.ipc
+gprobe-darwin-arm64.tar.gz
+gprobe-windows-x86_64.zip
+probechain-tests/
 
 # Excluded packages (not needed for Rydberg Mainnet)
 /probe-lang/
