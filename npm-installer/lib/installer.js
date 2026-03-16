@@ -269,7 +269,7 @@ async function cmdInstall() {
   // Banner
   console.log('');
   console.log('\x1b[1m  ProbeChain Rydberg Testnet — Agent Node Installer\x1b[0m');
-  console.log('\x1b[1m  Chain ID: 8004 | PoB V3.0.0 OZ Gold Standard\x1b[0m');
+  console.log('\x1b[1m  Chain ID: 8004 | PoB V3.0.0 OZ Gold Standard | 12 Validators\x1b[0m');
   console.log('');
 
   // 1. Platform detection
@@ -281,38 +281,104 @@ async function cmdInstall() {
     fail(`Missing requirements: ${reqs.missing.join(', ')}\nInstall them and retry.`);
   }
 
-  // 2. Check if already installed
+  // 2. Check if already installed — auto-upgrade if old version detected
+  let reusePassword = false;
   if (fs.existsSync(GPROBE_BIN)) {
-    if (isNodeRunning()) {
-      ok('Rydberg Agent node is already installed and running');
-      await cmdStatus();
-      return;
-    }
-    // Node exists but not running — nuclear kill everything
-    warn('Existing installation found but not a running Rydberg node. Reinstalling...');
-    if (isWin) {
-      // Kill by process name
-      try { execSync('taskkill /F /IM gprobe.exe 2>nul', { stdio: 'ignore' }); } catch {}
-      // Kill by PID from port 30398 and 8549
-      try { execSync('cmd /c "for /f \\"tokens=5\\" %a in (\'netstat -aon ^| findstr :30398 ^| findstr LISTENING\') do taskkill /F /PID %a"', { stdio: 'ignore' }); } catch {}
-      try { execSync('cmd /c "for /f \\"tokens=5\\" %a in (\'netstat -aon ^| findstr :8549 ^| findstr LISTENING\') do taskkill /F /PID %a"', { stdio: 'ignore' }); } catch {}
-      // WMIC fallback
-      try { execSync('wmic process where "CommandLine like \'%gprobe%\'" call terminate 2>nul', { stdio: 'ignore' }); } catch {}
-      sleepSync(3);
-      // Force delete all locked files
-      try { execSync(`del /f /q "${PASSWORD_FILE}" 2>nul`, { stdio: 'ignore' }); } catch {}
-      try { fs.unlinkSync(PASSWORD_FILE); } catch {}
-      // If STILL locked, rename it out of the way
-      try { if (fs.existsSync(PASSWORD_FILE)) fs.renameSync(PASSWORD_FILE, PASSWORD_FILE + '.old'); } catch {}
+    // Check if genesis is outdated by comparing with latest from GitHub
+    let needsUpgrade = false;
+    const localGenesis = path.join(INSTALL_DIR, 'genesis.json');
+    if (fs.existsSync(localGenesis)) {
+      try {
+        const local = JSON.parse(fs.readFileSync(localGenesis, 'utf8'));
+        const localTs = local.timestamp || '';
+        const localValidators = (local.config && local.config.pob && local.config.pob.list) || [];
+        // If timestamp or validator count differs from current release, upgrade needed
+        // We check by downloading fresh genesis later; for now detect stale chain (0 peers after running)
+        if (isNodeRunning()) {
+          const peers = ipcExec('admin.peers.length');
+          const block = ipcExec('probe.blockNumber');
+          const peerNum = parseInt(peers, 10) || 0;
+          const blockNum = parseInt(block, 10) || 0;
+          if (peerNum === 0 && blockNum > 0) {
+            needsUpgrade = true;
+            warn(`Old chain detected (block #${blockNum}, 0 peers). Upgrading to latest version...`);
+          } else if (peerNum > 0) {
+            ok('Rydberg Agent node is already installed and running (latest)');
+            await cmdStatus();
+            return;
+          } else {
+            needsUpgrade = true;
+            warn('Node running but no peers. Upgrading to latest chain...');
+          }
+        } else {
+          needsUpgrade = true;
+          warn('Existing installation found but node not running. Reinstalling...');
+        }
+      } catch {
+        needsUpgrade = true;
+      }
     } else {
-      try { execSync('pkill -9 -f "gprobe.*networkid 8004" 2>/dev/null', { stdio: 'ignore' }); } catch {}
-      sleepSync(1);
+      needsUpgrade = true;
+    }
+
+    if (needsUpgrade) {
+      // Kill old processes
+      log('Stopping old node...');
+      if (isWin) {
+        try { execSync('taskkill /F /IM gprobe.exe 2>nul', { stdio: 'ignore' }); } catch {}
+        try { execSync('cmd /c "for /f \\"tokens=5\\" %a in (\'netstat -aon ^| findstr :30398 ^| findstr LISTENING\') do taskkill /F /PID %a"', { stdio: 'ignore' }); } catch {}
+        try { execSync('cmd /c "for /f \\"tokens=5\\" %a in (\'netstat -aon ^| findstr :8549 ^| findstr LISTENING\') do taskkill /F /PID %a"', { stdio: 'ignore' }); } catch {}
+        try { execSync('wmic process where "CommandLine like \'%gprobe%\'" call terminate 2>nul', { stdio: 'ignore' }); } catch {}
+        sleepSync(3);
+      } else {
+        try { execSync('pkill -9 -f "gprobe.*networkid 8004" 2>/dev/null', { stdio: 'ignore' }); } catch {}
+        sleepSync(2);
+      }
+      ok('Old node stopped');
+
+      // Handle old password.txt — ask user
+      if (fs.existsSync(PASSWORD_FILE)) {
+        warn('Found old password file: ' + PASSWORD_FILE);
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const answer = await new Promise(resolve => {
+          rl.question('\x1b[33m  Delete old password and generate new one? [Y/n]: \x1b[0m', resolve);
+        });
+        rl.close();
+        if (answer.toLowerCase() === 'n') {
+          reusePassword = true;
+          ok('Keeping old password (will reuse for new account)');
+        } else {
+          try { fs.unlinkSync(PASSWORD_FILE); } catch {}
+          if (isWin) {
+            try { execSync(`del /f /q "${PASSWORD_FILE}" 2>nul`, { stdio: 'ignore' }); } catch {}
+            try { if (fs.existsSync(PASSWORD_FILE)) fs.renameSync(PASSWORD_FILE, PASSWORD_FILE + '.old'); } catch {}
+          }
+          ok('Old password deleted');
+        }
+      }
+
+      // Clean old chaindata (keep keystore dir removal for step 6)
+      const chaindata = path.join(DATA_DIR, 'gprobe', 'chaindata');
+      const lightdata = path.join(DATA_DIR, 'gprobe', 'lightchaindata');
+      const nodes = path.join(DATA_DIR, 'gprobe', 'nodes');
+      for (const d of [chaindata, lightdata, nodes]) {
+        if (fs.existsSync(d)) {
+          fs.rmSync(d, { recursive: true, force: true });
+        }
+      }
+      ok('Old chain data cleaned');
     }
   }
 
-  // 3. Auto-generate password (no user interaction needed for testnet)
-  const pwd = require('crypto').randomBytes(16).toString('hex');
-  log('Auto-generated node password');
+  // 3. Auto-generate password (unless reusing old one)
+  let pwd;
+  if (reusePassword && fs.existsSync(PASSWORD_FILE)) {
+    pwd = fs.readFileSync(PASSWORD_FILE, 'utf8').trim();
+    log('Reusing existing password');
+  } else {
+    pwd = require('crypto').randomBytes(16).toString('hex');
+    log('Auto-generated node password');
+  }
 
   // Create install directory
   fs.mkdirSync(INSTALL_DIR, { recursive: true });

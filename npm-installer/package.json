@@ -1,6 +1,6 @@
 {
   "name": "rydberg-agent-node",
-  "version": "3.6.0",
+  "version": "3.6.1",
   "description": "One-command ProbeChain Rydberg testnet Agent node installer",
   "bin": {
     "rydberg-agent-node": "./bin/rydberg-agent-node.js"
