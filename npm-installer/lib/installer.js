@@ -288,13 +288,19 @@ async function cmdInstall() {
       await cmdStatus();
       return;
     }
-    // Node exists but not running — kill any orphaned processes first
+    // Node exists but not running — kill ALL gprobe processes and release file locks
     warn('Existing installation found but not a running Rydberg node. Reinstalling...');
     if (isWin) {
       try { execSync('taskkill /F /IM gprobe.exe 2>nul', { stdio: 'ignore' }); } catch {}
-      sleepSync(2);
+      try { execSync('taskkill /F /FI "WINDOWTITLE eq gprobe*" 2>nul', { stdio: 'ignore' }); } catch {}
+      // Also kill by port in case process name differs
+      try { execSync('for /f "tokens=5" %a in (\'netstat -aon ^| findstr :30398\') do taskkill /F /PID %a 2>nul', { stdio: 'ignore' }); } catch {}
+      try { execSync('for /f "tokens=5" %a in (\'netstat -aon ^| findstr :8549\') do taskkill /F /PID %a 2>nul', { stdio: 'ignore' }); } catch {}
+      sleepSync(3);
+      // Force remove locked password file
+      try { execSync(`del /f /q "${PASSWORD_FILE}" 2>nul`, { stdio: 'ignore' }); } catch {}
     } else {
-      try { execSync('pkill -f "gprobe.*networkid 8004" 2>/dev/null', { stdio: 'ignore' }); } catch {}
+      try { execSync('pkill -9 -f "gprobe.*networkid 8004" 2>/dev/null', { stdio: 'ignore' }); } catch {}
       sleepSync(1);
     }
   }
