@@ -110,3 +110,9 @@ appveyor.yml
 circle.yml
 genesis_pob.json
 accounts/
+
+# Sensitive
+keystores-backup/
+*.key
+password*.txt
+gprobe-linux-amd64
