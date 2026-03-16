@@ -27,7 +27,7 @@ cat << 'BANNER'
  |  __/| | | (_) | |_) |  __/ |___| | | | (_| | | | | |
  |_|   |_|  \___/|_.__/ \___|\____|_| |_|\__,_|_|_| |_|
 
-  Rydberg Testnet — OZ Gold Standard (PoB V2.1)
+  Rydberg Testnet — OZ Gold Standard (PoB V3.0.0)
   Chain ID: 8004 | Block Time: ~1s
 
 BANNER

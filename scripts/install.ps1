@@ -16,7 +16,7 @@ function Write-Fail  { Write-Host "[FAIL] $args" -ForegroundColor Red; exit 1 }
 
 Write-Host ""
 Write-Host "  ProbeChain Rydberg Testnet — Agent Node Installer" -ForegroundColor White
-Write-Host "  Chain ID: 8004 | PoB V2.1 OZ Gold Standard" -ForegroundColor White
+Write-Host "  Chain ID: 8004 | PoB V3.0.0 OZ Gold Standard" -ForegroundColor White
 Write-Host ""
 
 # Fast path: npm

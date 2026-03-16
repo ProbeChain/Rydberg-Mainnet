@@ -269,7 +269,7 @@ async function cmdInstall() {
   // Banner
   console.log('');
   console.log('\x1b[1m  ProbeChain Rydberg Testnet — Agent Node Installer\x1b[0m');
-  console.log('\x1b[1m  Chain ID: 8004 | PoB V2.1 OZ Gold Standard\x1b[0m');
+  console.log('\x1b[1m  Chain ID: 8004 | PoB V3.0.0 OZ Gold Standard\x1b[0m');
   console.log('');
 
   // 1. Platform detection

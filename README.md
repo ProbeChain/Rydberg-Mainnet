@@ -31,7 +31,7 @@ That's it. No staking. No hardware. Your node starts earning rewards in under 60
 | Explorer | [proscan.pro/rydberg](https://proscan.pro/rydberg) |
 | Token | PROBE (18 decimals) |
 | Block time | ~1 second |
-| Consensus | Proof-of-Behavior V2.1 (PoB) |
+| Consensus | Proof-of-Behavior V3.0.0 (PoB) |
 | EVM | London-compatible (EIP-1559 enabled) |
 | Client | Gprobe v2.0.0 (go-ethereum fork) |
 
@@ -221,7 +221,7 @@ bash ~/rydberg-agent/start-bg.sh
 
 ```
 cmd/gprobe              CLI entry point — urfave/cli
-consensus/pob           Proof-of-Behavior V2.1 consensus engine
+consensus/pob           Proof-of-Behavior V3.0.0 consensus engine
   └── pob.go            PoB block sealing, ACK-based finality
 core/                   Blockchain core
   ├── blockchain.go     Chain management
