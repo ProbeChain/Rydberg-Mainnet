@@ -74,22 +74,22 @@
                     "owner": "0x123993ae3cda61266b8e924e2f37270e61f199a2"
                 },
                 {
-                    "enode": "enode://e963c6b5342f0af311b0347fab33238aa564617241222dc93a4691ef2c76990b69e87e98a300aa08fc4deba023017006cd38e7cf28aa92bf13a93e8ff0c1387a@8.216.37.182:30401",
+                    "enode": "enode://d6a3e880054d6d1b1be968d3544706e020ff913851a36a350773771ac2b3c3baf3d1ddbd356cafaf929daefff64facf7c27011a7e2f32a25fadbe41e306ccfa5@8.216.37.182:30401",
                     "owner": "0x90e080f6a8b1d6ca12778ef992e2970340bb677d"
                 },
                 {
-                    "enode": "enode://e742e55bae150ad4f004642d3a7365d2fe07f14b3ee7105fa47f6257e55937a90e5380b1a879c2e1e40295b0b482553536822b38615eecf444b5d8394c21a26e@8.216.49.15:30401",
+                    "enode": "enode://b84151bcf8e0217c05b569f38112e7793060ae89fdff9eae9ae0113fe191a6905971e8fd09bcd1de63731ab06109ed3911ee1fae26bf87309fe00f79c0310e3d@8.216.49.15:30401",
                     "owner": "0x67d36592c0490fea5bfb186db2776f55ecd8aa51"
                 },
                 {
-                    "enode": "enode://bfb54dde94a526375a7ddbec0a4e5e174394c02f8a1c4c5ebec2aa5a05188398849895fc11973b09f3eec49dbd12ea9c8cb924e194e2857560c87d2f8a557bad@8.216.32.20:30401",
+                    "enode": "enode://3ebeec23058b33d577fc24e8c5827a942a6e07dd6c2572d9b0ac7f485a877424a3d3827edbaa5d065b237a971cb0918ca5ba4d13231f18a0c863c6ff58098f7d@8.216.32.20:30401",
                     "owner": "0xfaec35d320699643c759562913f87dc4e50b14e1"
                 }
             ]
         }
     },
     "nonce": "0x0",
-    "timestamp": "0x69b876f9",
+    "timestamp": "0x69b87e66",
     "extraData": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "gasLimit": "0x1c9c380",
     "difficulty": "0x1",
