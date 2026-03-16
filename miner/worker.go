@@ -379,6 +379,10 @@ func (w *worker) ackMonitorLoop() {
 		log.Info("Ack monitor: chain stalled, forcing consensus restart",
 			"addr", w.coinbase, "block", curNum, "stuckFor", stuckCount*3, "seconds")
 
+		// Reset visualBlockNumber so the mining loop re-processes the current block
+		// as if it were new (bypasses the blockNumber <= visualBlockNumber skip)
+		w.visualBlockNumber.SetUint64(0)
+
 		// Re-inject chainHeadEvent to restart the mining loop
 		select {
 		case w.chainHeadCh <- core.ChainHeadEvent{}:

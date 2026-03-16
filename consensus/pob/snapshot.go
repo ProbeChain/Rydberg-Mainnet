@@ -341,7 +341,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 		}
 
 		// Tally up the new vote from the producer
-		var authorize bool
+		authorize := header.Nonce == nonceAuthVote
 		if snap.cast(header.Coinbase, authorize) {
 			snap.Votes = append(snap.Votes, &Vote{
 				Signer:    producer,

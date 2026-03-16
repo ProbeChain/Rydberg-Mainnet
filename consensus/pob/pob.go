@@ -75,6 +75,9 @@ var (
 	extraVanity = 32                     // Fixed number of extra-data prefix bytes reserved for vanity
 	extraSeal   = crypto.SignatureLength // Fixed number of extra-data suffix bytes reserved for seal
 
+	nonceAuthVote = types.BlockNonce{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff} // Magic nonce to vote on adding a new validator
+	nonceDropVote = types.BlockNonce{}                                                // Magic nonce to vote on removing a validator
+
 	uncleHash = types.CalcBehaviorProofUncleHash(nil) // Always Keccak256(RLP([])) as uncles are meaningless
 
 	diffInTurn = big.NewInt(2) // Block difficulty for in-turn validators
@@ -638,6 +641,36 @@ func (c *ProofOfBehavior) DrainPendingRegistrations() []TestnetRegistration {
 func (c *ProofOfBehavior) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	number := header.Number.Uint64()
 	checkpoint := number%c.pobConfig.Epoch == 0
+
+	// If the block is a non-checkpoint, pick a random proposal to vote on
+	header.Coinbase = common.Address{}
+	header.Nonce = types.BlockNonce{}
+
+	if !checkpoint {
+		c.lock.RLock()
+		if parent := chain.GetHeaderByNumber(number - 1); parent != nil {
+			snap, err := c.snapshot(chain, number-1, parent.Hash(), nil)
+			if err == nil {
+				// Gather all the proposals we want to vote on
+				addresses := make([]common.Address, 0, len(c.proposals))
+				for address, authorize := range c.proposals {
+					if snap.validVote(address, authorize) {
+						addresses = append(addresses, address)
+					}
+				}
+				// If there's a pending proposal, cast a vote on it
+				if len(addresses) > 0 {
+					header.Coinbase = addresses[number%uint64(len(addresses))]
+					if c.proposals[header.Coinbase] {
+						header.Nonce = nonceAuthVote
+					} else {
+						header.Nonce = nonceDropVote
+					}
+				}
+			}
+		}
+		c.lock.RUnlock()
+	}
 
 	// Ensure vanity prefix
 	if len(header.Extra) < extraVanity {
