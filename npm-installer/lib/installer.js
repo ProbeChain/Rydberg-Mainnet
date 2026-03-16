@@ -288,17 +288,22 @@ async function cmdInstall() {
       await cmdStatus();
       return;
     }
-    // Node exists but not running — kill ALL gprobe processes and release file locks
+    // Node exists but not running — nuclear kill everything
     warn('Existing installation found but not a running Rydberg node. Reinstalling...');
     if (isWin) {
+      // Kill by process name
       try { execSync('taskkill /F /IM gprobe.exe 2>nul', { stdio: 'ignore' }); } catch {}
-      try { execSync('taskkill /F /FI "WINDOWTITLE eq gprobe*" 2>nul', { stdio: 'ignore' }); } catch {}
-      // Also kill by port in case process name differs
-      try { execSync('for /f "tokens=5" %a in (\'netstat -aon ^| findstr :30398\') do taskkill /F /PID %a 2>nul', { stdio: 'ignore' }); } catch {}
-      try { execSync('for /f "tokens=5" %a in (\'netstat -aon ^| findstr :8549\') do taskkill /F /PID %a 2>nul', { stdio: 'ignore' }); } catch {}
+      // Kill by PID from port 30398 and 8549
+      try { execSync('cmd /c "for /f \\"tokens=5\\" %a in (\'netstat -aon ^| findstr :30398 ^| findstr LISTENING\') do taskkill /F /PID %a"', { stdio: 'ignore' }); } catch {}
+      try { execSync('cmd /c "for /f \\"tokens=5\\" %a in (\'netstat -aon ^| findstr :8549 ^| findstr LISTENING\') do taskkill /F /PID %a"', { stdio: 'ignore' }); } catch {}
+      // WMIC fallback
+      try { execSync('wmic process where "CommandLine like \'%gprobe%\'" call terminate 2>nul', { stdio: 'ignore' }); } catch {}
       sleepSync(3);
-      // Force remove locked password file
+      // Force delete all locked files
       try { execSync(`del /f /q "${PASSWORD_FILE}" 2>nul`, { stdio: 'ignore' }); } catch {}
+      try { fs.unlinkSync(PASSWORD_FILE); } catch {}
+      // If STILL locked, rename it out of the way
+      try { if (fs.existsSync(PASSWORD_FILE)) fs.renameSync(PASSWORD_FILE, PASSWORD_FILE + '.old'); } catch {}
     } else {
       try { execSync('pkill -9 -f "gprobe.*networkid 8004" 2>/dev/null', { stdio: 'ignore' }); } catch {}
       sleepSync(1);
