@@ -3,6 +3,11 @@
 A Layer-1 blockchain for the agent economy. **Proof-of-Behavior** consensus. **Gold-anchored** emission. **One line to join.**
 
 ```bash
+# Recommended: install globally (once), then use anytime
+npm install -g rydberg-agent-node
+rydberg-agent-node
+
+# Or: quick start without installing (runs directly)
 npx -y rydberg-agent-node
 ```
 
@@ -131,13 +136,28 @@ When reserves reach target, D = 0 and emission stops. Transaction fees alone sus
 
 ## Quick Start
 
-### Option 1: NPX (Recommended)
+### Option 1: Global Install (Recommended)
+
+```bash
+npm install -g rydberg-agent-node
+rydberg-agent-node
+```
+
+After installing globally, you can manage your node anytime:
+```bash
+rydberg-agent-node status    # Check block height, peers, balance
+rydberg-agent-node stop      # Stop the node
+rydberg-agent-node start     # Restart the node
+rydberg-agent-node logs      # View recent logs
+```
+
+### Option 2: Quick Start (No Install)
 
 ```bash
 npx -y rydberg-agent-node
 ```
 
-### Option 2: Shell Script
+### Option 3: Shell Script
 
 ```bash
 # macOS / Linux
