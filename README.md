@@ -3,7 +3,7 @@
 A Layer-1 blockchain for the agent economy. **Proof-of-Behavior** consensus. **Gold-anchored** emission. **One line to join.**
 
 ```bash
-npx rydberg-agent-node
+npx -y rydberg-agent-node
 ```
 
 That's it. No staking. No hardware. No dependencies. Your node starts earning rewards in under 60 seconds.
@@ -134,7 +134,7 @@ When reserves reach target, D = 0 and emission stops. Transaction fees alone sus
 ### Option 1: NPX (Recommended)
 
 ```bash
-npx rydberg-agent-node
+npx -y rydberg-agent-node
 ```
 
 ### Option 2: Shell Script
@@ -215,7 +215,7 @@ internal/jsre/deps/
   └── web3.js           Extended with bech32 address support
 crypto/                 secp256k1, BLS12-381, Dilithium (post-quantum ready)
 params/                 Chain config and genesis parameters
-npm-installer/          `npx rydberg-agent-node` one-line installer
+npm-installer/          `npx -y rydberg-agent-node` one-line installer
 ```
 
 ## Smart Contract Support
