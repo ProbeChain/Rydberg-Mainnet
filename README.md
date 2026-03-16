@@ -21,9 +21,9 @@ That's it. No staking. No hardware. No dependencies. Your node starts earning re
 |-------|-------|
 | Chain ID | `8004` |
 | RPC | `https://proscan.pro/chain/rydberg-rpc` |
-| Explorer | [proscan.pro](https://proscan.pro) |
+| Explorer | [proscan.pro/rydberg](https://proscan.pro/rydberg) |
 | Token | PROBE (18 decimals) |
-| Block time | ~15 seconds |
+| Block time | ~1 second |
 | Consensus | Proof-of-Behavior V2.1 (PoB) |
 | EVM | London-compatible (EIP-1559 enabled) |
 | Client | Gprobe v2.0.0 (go-ethereum fork) |
@@ -36,7 +36,7 @@ That's it. No staking. No hardware. No dependencies. Your node starts earning re
 | RPC URL | `https://proscan.pro/chain/rydberg-rpc` |
 | Chain ID | `8004` |
 | Currency Symbol | `PROBE` |
-| Block Explorer | `https://proscan.pro` |
+| Block Explorer | `https://proscan.pro/rydberg` |
 
 ---
 
@@ -65,14 +65,12 @@ Full test report: [`miner/stress/probechain-tests/logs/FULL_TEST_REPORT.md`](min
 |---------|--------|------|
 | Pro.Gold | [pro.gold](https://pro.gold) | Gold exchange |
 | AIoAI | [aioai.ai](https://aioai.ai) | AI Agent social platform |
-| oz.money | [oz.money](https://oz.money) | Financial services |
 | ProSwap | [proswap.pro](https://proswap.pro) | DEX (Uniswap V2 fork) |
 | Ashares | [ashares.ai](https://ashares.ai) | AI assets |
 | ProPay | — | Multi-chain wallet |
 | Probe.Builders | [probe.builders](https://probe.builders) | Developer platform |
-| ProScan | [proscan.pro](https://proscan.pro) | Block explorer |
+| ProScan | [proscan.pro/rydberg](https://proscan.pro/rydberg) | Block explorer |
 | Probebanks | [probebanks.com](https://probebanks.com) | Banking services |
-| UniClaw | [uniclaw.cloud](https://uniclaw.cloud) | A2A Agent collaboration |
 | tidal.financial | [tidal.financial](https://tidal.financial) | Financial services |
 | And more... | | |
 
@@ -83,7 +81,7 @@ Full test report: [`miner/stress/probechain-tests/logs/FULL_TEST_REPORT.md`](min
 |  | Bitcoin | Ethereum | **ProbeChain** |
 |--|---------|----------|----------------|
 | Consensus | Energy (PoW) | Capital (PoS) | **Behavior (PoB)** |
-| Block time | 10 min | 12 sec | **15 sec** |
+| Block time | 10 min | 12 sec | **~1 sec** |
 | Join cost | ASIC hardware | 32 ETH (~$80K) | **One command** |
 | Empty block reward | Full subsidy | Full subsidy | **Near-zero** |
 | Supply model | Fixed 21M | Deflationary | **Gold-anchored decay** |
@@ -167,7 +165,7 @@ curl -sSL https://raw.githubusercontent.com/ProbeChain/Rydberg-Mainnet/main/scri
 irm https://raw.githubusercontent.com/ProbeChain/Rydberg-Mainnet/main/scripts/install.ps1 | iex
 ```
 
-### Option 3: Build from Source
+### Option 4: Build from Source
 
 ```bash
 git clone https://github.com/ProbeChain/Rydberg-Mainnet.git
@@ -249,12 +247,7 @@ ProbeChain is fully EVM-compatible with the following considerations:
 | ERC-20 tokens | ✅ Tested |
 | ERC-721 NFTs | ✅ Tested (ERC-8004 Agent Identity) |
 | Uniswap V2 AMM | ✅ Tested (MiniSwap) |
-| PUSH0 opcode (Shanghai) | ❌ Not supported — use `--evm-version london` |
 
-**Important**: When compiling Solidity ≥ 0.8.20, use:
-```bash
-solc --optimize --evm-version london YourContract.sol
-```
 
 ## Address Format
 
@@ -290,7 +283,7 @@ enode://bfb54dde94a526375a7ddbec0a4e5e174394c02f8a1c4c5ebec2aa5a05188398849895fc
 |----------|-----|
 | Website | [probechain.org](https://probechain.org) |
 | Public RPC | `https://proscan.pro/chain/rydberg-rpc` |
-| Block Explorer | [proscan.pro](https://proscan.pro) |
+| Block Explorer | [proscan.pro/rydberg](https://proscan.pro/rydberg) |
 | AI Agent Platform | [aioai.ai](https://aioai.ai) |
 | Gold Exchange | [pro.gold](https://pro.gold) |
 | NPM Package | [npmjs.com/package/rydberg-agent-node](https://www.npmjs.com/package/rydberg-agent-node) |
