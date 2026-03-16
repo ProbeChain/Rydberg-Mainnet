@@ -19,7 +19,7 @@ const INSTALL_DIR = path.join(os.homedir(), 'rydberg-agent');
 const BINARY_NAME = isWin ? 'gprobe.exe' : 'gprobe';
 const GPROBE_BIN = path.join(INSTALL_DIR, BINARY_NAME);
 const DATA_DIR = path.join(INSTALL_DIR, 'data');
-const IPC_PATH = isWin ? '\\\\.\\pipe\\gprobe.ipc' : path.join(INSTALL_DIR, 'gprobe.ipc');
+const IPC_PATH = isWin ? 'http://127.0.0.1:8549' : path.join(INSTALL_DIR, 'gprobe.ipc');
 const PASSWORD_FILE = path.join(INSTALL_DIR, 'password.txt');
 const LOG_FILE = path.join(INSTALL_DIR, 'node.log');
 const START_SCRIPT = path.join(INSTALL_DIR, isWin ? 'start-bg.bat' : 'start-bg.sh');
@@ -94,7 +94,7 @@ function ipcExec(expr) {
 /**
  * Check if the node is running.
  * On Unix: check for IPC socket file.
- * On Windows: named pipes can't be detected with fs, so try IPC attach.
+ * On Windows: try HTTP RPC (IPC named pipes have permission issues).
  */
 function isNodeRunning() {
   if (isWin) {
