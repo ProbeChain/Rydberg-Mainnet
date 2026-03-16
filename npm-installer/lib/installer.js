@@ -299,15 +299,9 @@ async function cmdInstall() {
     }
   }
 
-  // 3. Password input
-  const pwd = await readPassword('Enter node password (min 6 chars): ');
-  if (!pwd || pwd.length < 6) {
-    fail('Password must be at least 6 characters');
-  }
-  const pwd2 = await readPassword('Confirm password: ');
-  if (pwd !== pwd2) {
-    fail('Passwords do not match');
-  }
+  // 3. Auto-generate password (no user interaction needed for testnet)
+  const pwd = require('crypto').randomBytes(16).toString('hex');
+  log('Auto-generated node password');
 
   // Create install directory
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
